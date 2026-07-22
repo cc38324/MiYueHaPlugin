@@ -140,6 +140,9 @@ async def _browse_dms(hass: HomeAssistant, cid: str) -> BrowseMedia:
     children: list[BrowseMedia] = []
     for entry in entries:
         if entry.is_container:
+            # 只留音乐:照片/视频容器(按 upnp:class 提示或常见目录名)不进树。
+            if entry.looks_non_audio:
+                continue
             children.append(_playable_dir(
                 f"nascont:{qudn}:{quote(entry.object_id, safe='')}",
                 MediaClass.DIRECTORY, title=entry.title,

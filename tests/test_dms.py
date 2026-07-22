@@ -89,3 +89,35 @@ def test_mime():
     assert _mime("http-get:*:audio/x-flac:*") == "audio/x-flac"
     assert _mime("") == "audio/mpeg"
     assert _mime("http-get:*:*:*") == "audio/mpeg"
+
+
+def test_parse_lenient_survives_dms_junk():
+    # Control char + bare ampersand inside metadata (real QNAP/WMP behavior)
+    # must not kill the page.
+    junk = MINIDLNA_DIDL.replace("Bryan Adams", "Bryan\x0b & Adams")
+    entries = parse_dms_didl(junk)
+    assert len(entries) == 3
+    assert "Adams" in entries[1].artist
+
+
+def test_non_audio_containers_flagged():
+    didl = (
+        '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/"'
+        ' xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/"'
+        ' xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
+        '<container id="1"><dc:title>音乐</dc:title>'
+        "<upnp:class>object.container.storageFolder</upnp:class></container>"
+        '<container id="2"><dc:title>影片</dc:title>'
+        "<upnp:class>object.container.storageFolder</upnp:class></container>"
+        '<container id="3"><dc:title>照片</dc:title>'
+        "<upnp:class>object.container.storageFolder</upnp:class></container>"
+        '<container id="4"><dc:title>我的收藏</dc:title>'
+        "<upnp:class>object.container.album.photoAlbum</upnp:class></container>"
+        "</DIDL-Lite>"
+    )
+    entries = parse_dms_didl(didl)
+    flags = {e.title: e.looks_non_audio for e in entries}
+    assert flags["音乐"] is False        # music stays
+    assert flags["影片"] is True         # video root filtered
+    assert flags["照片"] is True         # photo root filtered
+    assert flags["我的收藏"] is True      # photoAlbum class filtered anywhere

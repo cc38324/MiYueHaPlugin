@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from html import escape
 from xml.etree import ElementTree as ET
 
@@ -44,6 +45,26 @@ class SoapError(Exception):
 def _local(tag: str) -> str:
     """Strip an XML namespace from a tag name."""
     return tag.rsplit("}", 1)[-1] if "}" in tag else tag
+
+
+# Chars illegal in XML 1.0 (DLNA servers leak them from raw file tags), and
+# bare ampersands that aren't part of an entity (WMP-style servers emit them).
+_XML_ILLEGAL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f]")
+_BARE_AMP = re.compile(r"&(?!#\d+;|#x[0-9a-fA-F]+;|[A-Za-z][A-Za-z0-9]*;)")
+
+
+def parse_xml_lenient(text: str) -> ET.Element:
+    """Parse XML strictly, then retry after scrubbing illegal tokens.
+
+    Third-party DMS boxes (QNAP/WMP/minidlna) embed control chars or bare '&'
+    from raw file metadata; one bad byte must not kill a whole browse page.
+    Raises ET.ParseError only if the scrubbed document still fails.
+    """
+    try:
+        return ET.fromstring(text)
+    except ET.ParseError:
+        cleaned = _BARE_AMP.sub("&amp;", _XML_ILLEGAL.sub("", text))
+        return ET.fromstring(cleaned)
 
 
 def decode_mixed(raw: bytes) -> str:
@@ -177,7 +198,7 @@ class SoapClient:
 def _parse_response(text: str, action: str) -> dict[str, str]:
     """Extract out-args from a <u:ActionResponse> body."""
     try:
-        root = ET.fromstring(text)
+        root = parse_xml_lenient(text)
     except ET.ParseError as err:
         raise SoapError(f"{action}: malformed response XML: {err}") from err
 

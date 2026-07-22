@@ -18,9 +18,18 @@ from urllib.parse import unquote, urljoin, urlparse
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .soap import SoapClient
+from .soap import SoapClient, parse_xml_lenient
 
 _LOGGER = logging.getLogger(__name__)
+
+# Root-level container names that are clearly not music (localized variants
+# from minidlna / QNAP / Synology / WMP), plus class hints used at any depth.
+_NON_AUDIO_TITLES = {
+    "video", "videos", "movie", "movies", "影片", "视频", "电影", "录像",
+    "picture", "pictures", "photo", "photos", "image", "images",
+    "照片", "图片", "图像",
+}
+_NON_AUDIO_CLASS_HINTS = ("photo", "video", "image")
 
 DMS_DEVICE_ST = "urn:schemas-upnp-org:device:MediaServer:1"
 _CD_PREFIX = "urn:schemas-upnp-org:service:ContentDirectory"
@@ -52,6 +61,15 @@ class DmsEntry:
     url: str = ""
     protocol_info: str = ""
     duration: str = "0:00:00"
+    upnp_class: str = ""
+
+    @property
+    def looks_non_audio(self) -> bool:
+        """Photo/video container by class hint or well-known root title."""
+        cls = self.upnp_class.lower()
+        if any(hint in cls for hint in _NON_AUDIO_CLASS_HINTS):
+            return True
+        return self.title.strip().lower() in _NON_AUDIO_TITLES
 
 
 async def async_get_media_servers(hass: HomeAssistant) -> list[MediaServer]:
@@ -134,7 +152,7 @@ def parse_dms_didl(didl: str) -> list[DmsEntry]:
     if not didl or not didl.strip():
         return []
     try:
-        root = ET.fromstring(didl)
+        root = parse_xml_lenient(didl)
     except ET.ParseError:
         return []
     entries: list[DmsEntry] = []
@@ -150,6 +168,7 @@ def parse_dms_didl(didl: str) -> list[DmsEntry]:
                 is_container=True, object_id=el.get("id", ""),
                 title=text(f"{_DC}title") or "?",
                 art=text(f"{_UPNP}albumArtURI"),
+                upnp_class=text(f"{_UPNP}class"),
             ))
         elif tag == "item":
             if "audioItem" not in text(f"{_UPNP}class"):
