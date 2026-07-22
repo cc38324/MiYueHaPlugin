@@ -1,0 +1,76 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "添加米悦音箱",
+        "description": "输入音箱的 IP 地址。UPnP 端口会自动探测（设备重启后端口会变）。",
+        "data": {
+          "host": "主机 / IP 地址",
+          "port": "UPnP 端口（可选）"
+        }
+      },
+      "confirm": {
+        "title": "添加米悦音箱",
+        "description": "要添加米悦音箱“{name}”吗？"
+      }
+    },
+    "abort": {
+      "already_configured": "该音箱已配置。",
+      "not_miyue": "该 UPnP 设备不是米悦音箱。",
+      "no_udn": "设备未返回 UDN。"
+    },
+    "error": {
+      "cannot_connect": "无法在该地址找到米悦音箱。"
+    }
+  },
+  "services": {
+    "play_tts": {
+      "name": "播放语音播报",
+      "description": "让米悦音箱播报一段文字（可同时播报到整个分组）。",
+      "fields": {
+        "message": { "name": "播报内容", "description": "要播报的文字。" },
+        "volume": { "name": "音量", "description": "播报音量，1-100。" },
+        "announce_group": { "name": "播报到整组", "description": "音箱在分组中时，让每个成员都播报。" }
+      }
+    },
+    "create_alarm": {
+      "name": "创建闹钟",
+      "description": "在米悦音箱上创建闹钟。",
+      "fields": {
+        "time": { "name": "时间", "description": "闹钟时间，24 小时制 HH:MM。" },
+        "days": { "name": "重复星期", "description": "重复的星期；不填=每天。" },
+        "volume": { "name": "音量", "description": "响铃音量，1-100。" },
+        "duration": { "name": "自动停止（分钟）", "description": "响铃后播放 N 分钟自动暂停；0=一直播放。" },
+        "songlist_id": { "name": "歌单 id", "description": "要播放的设备歌单 id；不填=只播报文字。" },
+        "tts_text": { "name": "播报文字", "description": "闹钟响时播报的文字（可选）。" },
+        "enabled": { "name": "启用", "description": "创建后是否立即启用。" }
+      }
+    },
+    "delete_alarm": {
+      "name": "删除闹钟",
+      "description": "按 id 删除闹钟（id 见闹钟开关实体的 alarm_id 属性）。",
+      "fields": {
+        "alarm_id": { "name": "闹钟 id", "description": "设备上的闹钟 id。" }
+      }
+    },
+    "create_scene": {
+      "name": "创建情景",
+      "description": "在米悦音箱上创建情景（可通过按钮触发）。",
+      "fields": {
+        "name": { "name": "名称", "description": "情景显示名。" },
+        "songlist_id": { "name": "歌单 id", "description": "情景触发时播放的设备歌单。" },
+        "volume": { "name": "音量", "description": "情景音量，1-100。" },
+        "tts_text": { "name": "播报文字", "description": "触发时的播报文字（可选）。" },
+        "cmd": { "name": "触发码", "description": "唯一触发码（KNX/RS-485/自定义）；不填自动生成。" }
+      }
+    },
+    "delete_scene": {
+      "name": "删除情景",
+      "description": "按 id 删除情景（id 见情景按钮实体的 scene_id 属性）。",
+      "fields": {
+        "scene_id": { "name": "情景 id", "description": "设备上的情景 id。" }
+      }
+    }
+  }
+}

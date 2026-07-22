@@ -1,0 +1,17 @@
+{
+  "entity": {
+    "button": {
+      "scene": { "default": "mdi:play-box-multiple" }
+    },
+    "switch": {
+      "alarm": { "default": "mdi:alarm" }
+    }
+  },
+  "services": {
+    "play_tts": { "service": "mdi:account-voice" },
+    "create_alarm": { "service": "mdi:alarm-plus" },
+    "delete_alarm": { "service": "mdi:alarm-off" },
+    "create_scene": { "service": "mdi:playlist-plus" },
+    "delete_scene": { "service": "mdi:playlist-remove" }
+  }
+}
