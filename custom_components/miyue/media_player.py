@@ -336,7 +336,7 @@ class MiyueMediaPlayer(CoordinatorEntity[MiyueCoordinator], MediaPlayerEntity):
     async def async_browse_media(
         self, media_content_type=None, media_content_id=None
     ) -> BrowseMedia:
-        tree = await browsing.async_browse(self._device, media_content_id)
+        tree = await browsing.async_browse(self.hass, self._device, media_content_id)
         self._proxy_device_thumbnails(tree)
         return tree
 
@@ -378,8 +378,8 @@ class MiyueMediaPlayer(CoordinatorEntity[MiyueCoordinator], MediaPlayerEntity):
             await self._device.set_av_transport_uri(media_id)
             await self._device.play()
         else:
-            # A browsed device-local item (songlist/track/local/queue).
-            await browsing.async_play(self._device, media_id)
+            # A browsed device-local item (songlist/track/local/queue/NAS).
+            await browsing.async_play(self.hass, self._device, media_id)
         await self.coordinator.async_request_refresh()
 
     # -- services -----------------------------------------------------------

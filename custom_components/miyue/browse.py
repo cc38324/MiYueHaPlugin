@@ -24,8 +24,10 @@ import logging
 from urllib.parse import quote, unquote
 
 from homeassistant.components.media_player import BrowseMedia, MediaClass, MediaType
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
+from . import dms
 from .device import MiyueDevice
 from .didl import (
     DIRECT_LINK_SRCS,
@@ -47,6 +49,7 @@ LABELS = {
     "root": "MiYue",
     "fav": "收藏 Favorites",
     "local": "本机/U盘 Local",
+    "nas": "NAS 媒体库 DMS",
     "fav_songlists": "歌单 Songlists",
     "fav_boards": "榜单 Boards",
     "local_artists": "歌手 Artists",
@@ -59,14 +62,25 @@ LABELS = {
 }
 
 
-async def async_browse(device: MiyueDevice, content_id: str | None) -> BrowseMedia:
+async def async_browse(
+    hass: HomeAssistant, device: MiyueDevice, content_id: str | None
+) -> BrowseMedia:
     cid = content_id or "root"
     if cid == "root":
         return _dir("root", [
             _dir("fav"),
             _dir("local"),
+            _dir("nas"),
             _playable_dir("queue", MediaClass.PLAYLIST),
         ])
+    if cid == "nas":
+        servers = await dms.async_get_media_servers(hass)
+        return _dir("nas", [
+            _dir(f"nasrv:{quote(s.udn, safe='')}", title=s.name)
+            for s in servers
+        ])
+    if cid.startswith(("nasrv:", "nascont:")):
+        return await _browse_dms(hass, cid)
     if cid == "fav":
         return _dir("fav", [
             _playable_dir("liked", MediaClass.PLAYLIST),
@@ -118,13 +132,65 @@ async def async_browse(device: MiyueDevice, content_id: str | None) -> BrowseMed
     )
 
 
-async def async_play(device: MiyueDevice, content_id: str) -> None:
+async def _browse_dms(hass: HomeAssistant, cid: str) -> BrowseMedia:
+    """List one NAS server root or container: sub-folders + audio tracks."""
+    server, object_id = await _resolve_dms(hass, cid)
+    entries = await dms.async_browse_object(hass, server, object_id)
+    qudn = quote(server.udn, safe="")
+    children: list[BrowseMedia] = []
+    for entry in entries:
+        if entry.is_container:
+            children.append(_playable_dir(
+                f"nascont:{qudn}:{quote(entry.object_id, safe='')}",
+                MediaClass.DIRECTORY, title=entry.title,
+                thumb=entry.art or None,
+            ))
+    tracks = [e for e in entries if not e.is_container]
+    for i, t in enumerate(tracks):
+        title = t.title if not t.artist else f"{t.title} — {t.artist}"
+        children.append(BrowseMedia(
+            media_class=MediaClass.TRACK,
+            media_content_id=f"{cid}|{i}",
+            media_content_type=MediaType.TRACK,
+            title=title,
+            can_play=True,
+            can_expand=False,
+            thumbnail=t.art or None,
+        ))
+    return _playable_dir(cid, MediaClass.DIRECTORY, title=server.name,
+                         children=children)
+
+
+async def _resolve_dms(hass: HomeAssistant, leaf: str):
+    """'nasrv:<qudn>' -> (server, '0'); 'nascont:<qudn>:<qobj>' -> (server, obj)."""
+    parts = leaf.split(":", 2)
+    udn = unquote(parts[1])
+    object_id = unquote(parts[2]) if len(parts) > 2 else "0"
+    server = await dms.async_find_server(hass, udn)
+    if server is None:
+        raise HomeAssistantError("NAS 已不在线（SSDP 缓存里找不到了），稍后再试")
+    return server, object_id
+
+
+async def async_play(
+    hass: HomeAssistant, device: MiyueDevice, content_id: str
+) -> None:
     """Resolve a media_content_id to a device play action."""
     leaf, index = _split_index(content_id)
 
     if leaf == "queue":
         # The queue is already loaded; just jump (or restart at 0).
         await device.seek_to_track(index if index is not None else 0)
+        return
+
+    if leaf.startswith(("nasrv:", "nascont:")):
+        server, object_id = await _resolve_dms(hass, leaf)
+        entries = await dms.async_browse_object(hass, server, object_id)
+        tracks = [e for e in entries if not e.is_container]
+        if not tracks:
+            raise HomeAssistantError("该 NAS 目录下没有可播的音频")
+        didl = dms.build_miyue_didl(tracks, server.name)
+        await device.replace_queue(didl, index or 0)
         return
 
     didl = await _leaf_didl(device, leaf)
