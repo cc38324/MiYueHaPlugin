@@ -15,9 +15,12 @@ and `newMiYueApp/flutter_app` source trees.
   header always points at it. **The HTTP port drifts** across reboots (pupnp
   starts at 49495 and climbs to 4950x on FD leaks). Never hardcode it — read
   `LOCATION`, re-resolve on SSDP re-sighting.
-- Both firmwares expose the same services; the Android build additionally
-  exposes `MiyueUpdate:1` (a Linux-vs-Android discriminator) and does **not**
-  inline `<miyue:role>` in the description. **Read role/group state from
+- Both firmwares expose the same services, except `MiyueUpdate:1`, which is
+  implemented by the **Linux** firmware only (`MYDevice/MYUpnp/MiyueUpdate.cpp`;
+  the Android build has no such service) — its presence in `description.xml`
+  identifies a Linux/RK3308 device. An earlier revision of this document had
+  that discriminator inverted; treat other Linux-vs-Android labels below with
+  matching suspicion until re-verified. **Read role/group state from
   `MiyueGroup.GetGroupInfo`, never from description tags.**
 
 ## Services & control URLs
@@ -36,7 +39,7 @@ and `newMiYueApp/flutter_app` source trees.
 | MiyueSensor | `urn:miyue-hk:service:MiyueSensor:1` | `/_control/MiyueSensor` |
 | MiyueAccount | `urn:miyue-hk:service:MiyueAccount:1` | `/_control/MiyueAccount` |
 | MiyueIntercom | `urn:miyue-hk:service:MiyueIntercom:1` | `/_control/MiyueIntercom` |
-| MiyueUpdate (Android only) | `urn:miyue-hk:service:MiyueUpdate:1` | `/_control/MiyueUpdate` |
+| MiyueUpdate (Linux only) | `urn:miyue-hk:service:MiyueUpdate:1` | `/_control/MiyueUpdate` |
 
 Event (GENA) URLs mirror control URLs with `/_event/<Name>` (private) and
 `/MediaRenderer/<Svc>/Event` (standard). SOAP header:
@@ -47,20 +50,52 @@ Event (GENA) URLs mirror control URLs with `/_event/<Name>` (private) and
 **AVTransport** — `Play(InstanceID,Speed)`, `Pause(InstanceID)`,
 `Stop(InstanceID)`, `Seek(InstanceID,Unit=REL_TIME,Target=H:MM:SS)`,
 `GetTransportInfo → CurrentTransportState {STOPPED,PLAYING,PAUSED_PLAYBACK,TRANSITIONING,NO_MEDIA_PRESENT}`,
-`GetPositionInfo → RelTime,TrackDuration`, `SetAVTransportURI(CurrentURI,CurrentURIMetaData)`.
-There is **no Next/Previous** in this firmware's AVTransport — use
-`MiyueQueue.SeekToTrack`.
+`GetPositionInfo → RelTime,TrackDuration`, `SetAVTransportURI(CurrentURI,CurrentURIMetaData)`,
+`Next(InstanceID)` / `Previous(InstanceID)`. **Next/Previous are handled by
+BOTH firmwares' runtime dispatchers** (the Linux SCPD declares them; the
+Android SCPD hides them but answers) and route through the device's single
+button arbiter — queue advance with wrap+shuffle, Bluetooth AVRCP / AirPlay
+AP2 reverse control, radio/AUX gating — the same path as the physical keys.
+**Always prefer them over client-side SeekToTrack index math**; firmware that
+predates them answers a SOAP fault → fall back to `MiyueQueue.SeekToTrack`,
+but ONLY on a genuine fault (a timeout may mean Next already ran → blind
+SeekToTrack double-skips) and only when a queue source is sounding.
+(An earlier revision claimed no Next/Previous existed — wrong.)
+**Sync slaves differ by firmware**: a Linux slave keeps its renderer up and
+forwards Next/Previous to the master (whole-group skip, same as its physical
+key) and reports the `-105` sentinel; an Android slave unregisters the whole
+MediaRenderer (control URLs 404) and a `SeekToTrack` pushed at it rips it out
+of the group and starts its stale local queue — gate every queue write on
+`GetGroupInfo.Role`.
 
 **RenderingControl** — `GetVolume/SetVolume(InstanceID,Channel=Master,Desired 0..100)`,
 `GetMute/SetMute`. A **slave** hides its renderer and 404s here; read a slave's
 volume from the SSDP `X-MIYUE-VOL` header instead.
 
-**MiyueQueue** — `GetTimeline → Result(DIDL-Lite), CurrentIndex`,
-`SeekToTrack(Index)`, `GetPlayMode/SetPlayMode(PlayMode {NORMAL,REPEAT_ONE,REPEAT_ALL,SHUFFLE})`,
+**MiyueQueue** — `GetQueue(StartIndex,RequestedCount) → Result(DIDL-Lite),
+Count, Total, CurrentIndex` is the **universal queue read** (both firmwares).
+`CurrentIndex` is the QUEUE index — the same space `SeekToTrack(Index)` takes
+(0-based, verified live by title match). `CurrentIndex < 0` means the queue is
+not what is sounding **on the Linux firmware**: `-1` idle/none; `<= -100`
+owner sentinels (-100 radio, -101 DLNA cast, -102 AirPlay, -103 AUX,
+-104 SPDIF, -105 sync-slave, -106 Bluetooth, -107 TTS, -108 voice,
+-109 intercom). **Android does NOT project owner sentinels into GetQueue**:
+its CurrentIndex is the raw queue index (`b.getIndex()`; only the radio path
+writes -100), so a stale POSITIVE index can persist while Bluetooth/AirPlay/
+DLNA/a sync group owns playback — never treat a positive CurrentIndex alone
+as proof the queue is sounding. Android's owner projection (-100..-106) is
+exposed only as `GetTimeline`'s `MusicIndex` out-arg.
+`GetTimeline` exists **only on the Android firmware**
+(the Linux one answers HTTP 500 / errorCode 501 "Action Failed") and its
+CurrentIndex is a TIMELINE position that diverges from the queue index under
+SHUFFLE — never use it for control. Other actions: `SeekToTrack(Index)`,
+`GetPlayMode/SetPlayMode(PlayMode {NORMAL,REPEAT_ONE,REPEAT_ALL,SHUFFLE})`,
 `ReplaceQueue/AppendQueue(Items=DIDL-Lite,...)`, `RemoveTrack`, `RemoveAllTracks`.
-The DIDL items carry `<miyue:songSrc>`, `<miyue:songId>`, `<miyue:musicId>`
-alongside `dc:title` / `upnp:album` / `upnp:albumArtURI`. **now-playing metadata
-comes from here**, not AVTransport.
+`SeekToTrack` silently no-ops (still returning success) on an out-of-range or
+negative Index. The DIDL items carry `<miyue:songSrc>`, `<miyue:songId>`,
+`<miyue:musicId>` alongside `dc:title` / `upnp:album` / `upnp:albumArtURI`.
+**now-playing metadata comes from here**, not AVTransport. Skip capability by
+songSrc mirrors the Flutter controller's `song_src.dart` (see `song_src.py`).
 
 **MiyueAudioSource** — `GetExternalInputs → WithAux,OpenAux,WithSpdif,OpenSpdif,WithBluetooth,OpenBluetooth,BluetoothStatus`,
 `SelectSource(Source)`, `SetInputOpen(Source,On)`.

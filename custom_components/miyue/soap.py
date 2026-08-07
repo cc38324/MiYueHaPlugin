@@ -173,6 +173,9 @@ class SoapClient:
                     text = decode_mixed(await resp.read())
                     if resp.status != 200:
                         fault = _parse_fault(text)
+                        _LOGGER.debug(
+                            "SOAP %s -> HTTP %s fault %s", url, resp.status, fault
+                        )
                         raise SoapError(
                             f"{action} on {url} -> HTTP {resp.status}"
                             + (f" ({fault})" if fault else ""),
@@ -187,9 +190,12 @@ class SoapClient:
                     await asyncio.sleep(0.2)
                     continue
             except aiohttp.ClientError as err:
+                _LOGGER.debug("SOAP %s#%s transport error: %s", url, action, err)
                 raise SoapError(f"{action} on {url} transport error: {err}") from err
             except asyncio.TimeoutError as err:
+                _LOGGER.debug("SOAP %s#%s timed out", url, action)
                 raise SoapError(f"{action} on {url} timed out") from err
+        _LOGGER.debug("SOAP %s#%s dropped twice: %s", url, action, last_err)
         raise SoapError(
             f"{action} on {url} connection dropped twice: {last_err}"
         ) from last_err

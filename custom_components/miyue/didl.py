@@ -2,9 +2,9 @@
 
 The now-playing card's title/artist/album/cover do NOT come from AVTransport
 (its GetPositionInfo returns TrackURI="local://current" with empty metadata).
-They come from MiyueQueue.GetTimeline / GetQueue, whose Result is a DIDL-Lite
-document with per-item <miyue:songSrc>/<miyue:songId>/<miyue:musicId> plus the
-usual dc:title / upnp:album / upnp:albumArtURI. Format verified live on M330B.
+They come from MiyueQueue.GetQueue, whose Result is a DIDL-Lite document with
+per-item <miyue:songSrc>/<miyue:songId>/<miyue:musicId> plus the usual
+dc:title / upnp:album / upnp:albumArtURI. Format verified live on M330B.
 """
 
 from __future__ import annotations
@@ -31,14 +31,6 @@ class MiyueTrack:
     music_id: str
     duration: str  # "H:MM:SS" as given by the device, may be "0:00:00"
     res_uri: str
-
-    @property
-    def is_bluetooth(self) -> bool:
-        return self.song_src == 14
-
-    @property
-    def is_airplay(self) -> bool:
-        return self.song_src == 8
 
 
 def repair_mojibake(value: str) -> str:

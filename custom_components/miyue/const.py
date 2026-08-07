@@ -42,7 +42,9 @@ ST_ALARM = "urn:miyue-hk:service:MiyueAlarmClock:1"
 ST_SENSOR = "urn:miyue-hk:service:MiyueSensor:1"
 ST_ACCOUNT = "urn:miyue-hk:service:MiyueAccount:1"
 ST_INTERCOM = "urn:miyue-hk:service:MiyueIntercom:1"
-# Android-only; absent on the Linux firmware. Present for completeness.
+# Implemented by the LINUX firmware only (MYDevice/MYUpnp/MiyueUpdate.cpp);
+# the Android build has no such service. Its presence in description.xml
+# identifies a Linux/RK3308 device.
 ST_UPDATE = "urn:miyue-hk:service:MiyueUpdate:1"
 
 
@@ -94,18 +96,9 @@ EXTERNAL_INPUT_FLAGS = {
 }
 
 # --- miyue:songSrc enum (DIDL-Lite <miyue:songSrc>) ------------------------
-# Source id carried per queue item. Drives display + whether the device can
-# self-resolve a stream URL. Values confirmed across the repos' memory notes:
-SONGSRC_LOCAL = 0
-SONGSRC_DLNA_QPLAY = 3  # inbound QPlay/DLNA push (e.g. Kugou) -- not DMS browse
-SONGSRC_XIMALAYA = 4
-SONGSRC_AIRPLAY = 8
-SONGSRC_ERGEDUODUO = 10
-SONGSRC_KUGOU = 13
-SONGSRC_BLUETOOTH = 14
-SONGSRC_NETEASE = 15
-SONGSRC_KUGOU_RADIO = 16
-SONGSRC_NAS_DMS = 21  # NAS direct-link browse
+# The canonical songSrc table and skip/queue capability sets live in
+# song_src.py, mirrored from the Flutter controller's song_src.dart. (An
+# earlier table here had 8/13/14 mislabeled -- 8 is radio, not AirPlay.)
 
 # --- DIDL-Lite namespaces (for building/parsing metadata) ------------------
 DIDL_NS = {

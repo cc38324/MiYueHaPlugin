@@ -218,23 +218,54 @@ class MiyueDevice:
         return None
 
     # -- MiyueQueue ---------------------------------------------------------
-    async def get_timeline(self) -> tuple[list[MiyueTrack], int]:
-        """Return (tracks, current_index). Current track = tracks[current_index]."""
+    async def get_queue_state(
+        self,
+    ) -> tuple[list[MiyueTrack], int, int, MiyueTrack | None]:
+        """Return (tracks, current_index, total, current_track).
+
+        Reads GetQueue -- the universal queue read: both firmwares implement
+        it, and its CurrentIndex is the QUEUE index (SeekToTrack's space).
+        GetTimeline exists only on the Android firmware (the Linux one answers
+        a SOAP fault) and its index is a timeline position that diverges from
+        the queue index under SHUFFLE -- never use it for control.
+        CurrentIndex < 0 means the queue is not what is sounding on the LINUX
+        firmware (-1 idle, <= -100 owner sentinels); the ANDROID firmware
+        returns the RAW index (-100 only from the radio path), so a stale
+        positive index may persist while an external source owns playback.
+        The first page is capped at 500 items; when the current track lies
+        beyond it, fetch that one item so now-playing survives long queues.
+        """
         r = await self._soap.call(
-            miyue_control("MiyueQueue"), ST_QUEUE, "GetTimeline"
+            miyue_control("MiyueQueue"), ST_QUEUE, "GetQueue",
+            {"StartIndex": "0", "RequestedCount": "500"},
         )
         tracks = parse_didl(r.get("Result", ""))
+        total = _to_int(r.get("Total", "0")) or len(tracks)
         try:
-            current = int(r.get("CurrentIndex", "0"))
+            current = int(r.get("CurrentIndex", "-1"))
         except ValueError:
-            current = 0
-        return tracks, current
+            current = -1
+        current_track: MiyueTrack | None = None
+        if 0 <= current < len(tracks):
+            current_track = tracks[current]
+        elif len(tracks) <= current < total:
+            try:
+                page = await self._soap.call(
+                    miyue_control("MiyueQueue"), ST_QUEUE, "GetQueue",
+                    {"StartIndex": str(current), "RequestedCount": "1"},
+                )
+            except SoapError:
+                # Optional enhancement only -- never discard the successful
+                # first page over it (TrackMetaData still backfills the card).
+                pass
+            else:
+                items = parse_didl(page.get("Result", ""))
+                current_track = items[0] if items else None
+        return tracks, current, total, current_track
 
     async def get_current_track(self) -> MiyueTrack | None:
-        tracks, current = await self.get_timeline()
-        if 0 <= current < len(tracks):
-            return tracks[current]
-        return None
+        _tracks, _current, _total, current_track = await self.get_queue_state()
+        return current_track
 
     async def get_play_mode(self) -> str:
         r = await self._soap.call(
@@ -276,6 +307,21 @@ class MiyueDevice:
     async def pause(self) -> None:
         await self._soap.call(
             AVTRANSPORT_CONTROL, ST_AVTRANSPORT, "Pause", {"InstanceID": 0}
+        )
+
+    async def next(self) -> None:
+        """AVTransport Next: the firmware's single button arbiter -- queue
+        advance with wrap+shuffle, Bluetooth AVRCP / AirPlay AP2 reverse
+        control, radio/AUX gating -- same path as the physical key. Both
+        firmwares handle it (the Android SCPD just doesn't declare it);
+        firmware that predates it answers a SOAP fault."""
+        await self._soap.call(
+            AVTRANSPORT_CONTROL, ST_AVTRANSPORT, "Next", {"InstanceID": 0}
+        )
+
+    async def previous(self) -> None:
+        await self._soap.call(
+            AVTRANSPORT_CONTROL, ST_AVTRANSPORT, "Previous", {"InstanceID": 0}
         )
 
     async def stop(self) -> None:
@@ -424,8 +470,10 @@ class MiyueDevice:
             miyue_control("MiyueQueue"), ST_QUEUE, "GetQueue",
             {"StartIndex": str(start_index), "RequestedCount": str(count)},
         )
+        # default=-1 also catches an EMPTY <CurrentIndex/> (int("") fails);
+        # 0 would sneak past _skip's idx<0 guard as "first track is current".
         return (r.get("Result", ""), _to_int(r.get("Total", "0")),
-                _to_int(r.get("CurrentIndex", "-1")))
+                _to_int(r.get("CurrentIndex", "-1"), -1))
 
     # -- MiyueAlarmClock ----------------------------------------------------
     async def list_alarms(self) -> list[dict]:

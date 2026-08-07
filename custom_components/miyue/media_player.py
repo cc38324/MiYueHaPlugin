@@ -16,6 +16,7 @@ from homeassistant.components.media_player import (
     RepeatMode,
 )
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_platform
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
@@ -37,8 +38,17 @@ from .const import (
     TRANSPORT_STOPPED,
     TRANSPORT_TRANSITIONING,
 )
+from .const import ROLE_SLAVE
 from .coordinator import MiyueCoordinator
 from .didl import duration_to_seconds
+from .soap import SoapError
+from .song_src import (
+    QUEUE_SONGSRCS,
+    SENTINEL_SYNC_SLAVE,
+    UNKNOWN,
+    can_skip,
+    effective_song_src,
+)
 from . import browse as browsing
 from . import group as grouping
 
@@ -120,7 +130,6 @@ class MiyueMediaPlayer(CoordinatorEntity[MiyueCoordinator], MediaPlayerEntity):
     _attr_has_entity_name = True
     _attr_name = None  # entity carries the device's name
     _attr_device_class = MediaPlayerDeviceClass.SPEAKER
-    _attr_supported_features = _SUPPORTED
 
     def __init__(self, runtime: MiyueRuntimeData) -> None:
         super().__init__(runtime.coordinator)
@@ -146,6 +155,42 @@ class MiyueMediaPlayer(CoordinatorEntity[MiyueCoordinator], MediaPlayerEntity):
             sw_version=data.software_version if data else None,
             connections=set(),
         )
+
+    @property
+    def supported_features(self) -> MediaPlayerEntityFeature:
+        """Gray out next/prev for sources that cannot skip (Flutter parity).
+
+        Radio, DLNA cast-in and AUX/SPDIF are single streams the device will
+        not skip within -- showing the buttons only teaches users they're
+        broken. Queue sources, Bluetooth/AirPlay (device-side AVRCP/AP2
+        reverse control) and a Linux sync slave (Next forwards to the master)
+        keep them.
+        """
+        if self._skip_allowed():
+            return _SUPPORTED
+        return _SUPPORTED & ~(
+            MediaPlayerEntityFeature.NEXT_TRACK
+            | MediaPlayerEntityFeature.PREVIOUS_TRACK
+        )
+
+    def _skip_allowed(self) -> bool:
+        data = self.coordinator.data
+        idx = getattr(self.coordinator, "current_index", UNKNOWN)
+        if data and data.group.role == ROLE_SLAVE:
+            # A slave may skip only when the forwarding path provably exists.
+            # The LINUX firmware keeps the slave's renderer up and forwards
+            # Next/Previous to the master (whole-group skip) -- and it is the
+            # firmware that emits the -105 sentinel. An ANDROID slave hides
+            # its renderer (Next would 404) while GetQueue leaks a stale raw
+            # index; a SeekToTrack there rips the device out of the group.
+            return idx == SENTINEL_SYNC_SLAVE
+        track = data.current_track if data else None
+        src = effective_song_src(
+            data.active_source if data else None,
+            idx,
+            track.song_src if track else None,
+        )
+        return can_skip(src)
 
     # -- transport state ----------------------------------------------------
     @property
@@ -289,18 +334,53 @@ class MiyueMediaPlayer(CoordinatorEntity[MiyueCoordinator], MediaPlayerEntity):
         await self.coordinator.async_request_refresh()
 
     async def async_media_next_track(self) -> None:
-        # No Next in this firmware's AVTransport SCPD -> jump the queue index.
-        idx = getattr(self.coordinator, "current_index", 0)
-        total = getattr(self.coordinator, "track_total", 0)
-        target = idx + 1
-        if total and target >= total:
-            target = 0  # wrap
-        await self._device.seek_to_track(target)
-        await self.coordinator.async_request_refresh()
+        await self._skip(forward=True)
 
     async def async_media_previous_track(self) -> None:
-        idx = getattr(self.coordinator, "current_index", 0)
-        await self._device.seek_to_track(max(0, idx - 1))
+        await self._skip(forward=False)
+
+    async def _skip(self, *, forward: bool) -> None:
+        """Skip via AVTransport Next/Previous, like the Flutter controller.
+
+        The firmware's button arbiter owns wrap, shuffle order and the
+        Bluetooth/AirPlay reverse control -- client-side index math cannot
+        reproduce that. Firmware predating Next/Previous answers a SOAP
+        fault; emulate a plain queue step there (no wrap) from a FRESH
+        GetQueue index -- the polled one may be a cycle stale.
+        """
+        if not self._skip_allowed():
+            return  # non-skippable source / unsafe slave: mirror the gray-out
+        dev = self._device
+        try:
+            await (dev.next() if forward else dev.previous())
+        except SoapError as err:
+            # Only a genuine SOAP fault proves "this firmware has no Next".
+            # On a timeout/transport loss the action may HAVE executed (a
+            # blind SeekToTrack would double-skip), and a hidden renderer
+            # 404s with no fault body -- surface those instead of guessing.
+            if err.fault_code is None:
+                # Clean frontend toast + single-line log instead of
+                # unknown_error with a full stack.
+                raise HomeAssistantError(str(err)) from err
+            _LOGGER.debug(
+                "%s AVTransport %s unsupported (%s); queue-step fallback",
+                dev.udn, "Next" if forward else "Previous", err,
+            )
+            _didl, total, idx = await dev.get_queue_didl(0, 1)
+            if idx < 0 or total <= 0:
+                return  # queue is not what's sounding; nothing sane to do
+            data = self.coordinator.data
+            track = data.current_track if data else None
+            src = track.song_src if track else None
+            if src is not None and src not in QUEUE_SONGSRCS:
+                # An external single-stream is sounding (its queue index can
+                # be a stale leftover): client-side emulation would hijack
+                # it. The Flutter fallback stays silent here too.
+                return
+            target = idx + (1 if forward else -1)
+            if not 0 <= target < total:
+                return
+            await dev.seek_to_track(target)
         await self.coordinator.async_request_refresh()
 
     async def async_media_seek(self, position: float) -> None:

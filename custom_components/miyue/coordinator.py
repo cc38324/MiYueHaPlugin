@@ -52,6 +52,7 @@ class MiyueCoordinator(DataUpdateCoordinator[DeviceState]):
         self.device = device
         self._static: dict[str, str] | None = None  # cached GetDeviceInfo
         self._fail_count = 0  # consecutive both-anchors-down poll failures
+        self._reported_failures: set[str] = set()  # per-call warn-once state
 
     async def _async_update_data(self) -> DeviceState:
         dev = self.device
@@ -63,7 +64,7 @@ class MiyueCoordinator(DataUpdateCoordinator[DeviceState]):
             self._get_static(),
             dev.get_transport_info(),
             dev.get_position_info(),
-            dev.get_timeline(),
+            dev.get_queue_state(),
             dev.get_group_info(),
             dev.get_external_inputs(),
             dev.get_play_mode(),
@@ -71,7 +72,7 @@ class MiyueCoordinator(DataUpdateCoordinator[DeviceState]):
             dev.get_mute(),
             return_exceptions=True,
         )
-        static, transport, position, timeline, group, inputs, play_mode, \
+        static, transport, position, queue, group, inputs, play_mode, \
             volume, mute = results
 
         # Liveness anchor: the private services (device info / group) are served
@@ -91,18 +92,35 @@ class MiyueCoordinator(DataUpdateCoordinator[DeviceState]):
             raise UpdateFailed(f"{dev.udn} poll failed: {static}")
         self._fail_count = 0
 
+        # A degraded sub-call must be VISIBLE: the year of GetTimeline 401-ing
+        # every 3 s with zero log trace is why this exists. Warn once per call
+        # name, then keep quiet (a group slave 404s AVTransport by design).
+        for name, result in zip(
+            ("GetDeviceInfo", "GetTransportInfo", "GetPositionInfo",
+             "GetQueue", "GetGroupInfo", "GetExternalInputs", "GetPlayMode",
+             "GetVolume", "GetMute"),
+            results,
+        ):
+            if isinstance(result, Exception):
+                self._log_degraded(name, result)
+
         static = {} if isinstance(static, Exception) else static
         transport = {} if isinstance(transport, Exception) else transport
         position = {} if isinstance(position, Exception) else position
-        timeline = ([], 0) if isinstance(timeline, Exception) else timeline
+        if isinstance(queue, Exception):
+            # A lone GetQueue failure must not flip the skip gating: -1 also
+            # means the legit "queue idle", and the Linux-slave gate
+            # (idx == -105) would drop NEXT/PREV from supported_features for
+            # a cycle and churn the entity registry. Keep last poll's values.
+            queue = ([], getattr(self, "current_index", -1),
+                     getattr(self, "track_total", 0), None)
         group = GroupInfo() if isinstance(group, Exception) else group
         inputs = {} if isinstance(inputs, Exception) else inputs
         play_mode = "NORMAL" if isinstance(play_mode, Exception) else play_mode
         volume = None if isinstance(volume, Exception) else volume
         mute = None if isinstance(mute, Exception) else mute
 
-        tracks, current_index = timeline
-        current = tracks[current_index] if 0 <= current_index < len(tracks) else None
+        tracks, current_index, queue_total, current = queue
         # AVTransport's TrackMetaData is authoritative for the track that is
         # ACTUALLY sounding: radio/BT/AirPlay single-streams never enter the
         # queue (and some firmware builds 500 GetTimeline entirely in that
@@ -129,13 +147,24 @@ class MiyueCoordinator(DataUpdateCoordinator[DeviceState]):
         self.muted = mute
         self.transport_state = transport.get("CurrentTransportState", "STOPPED")
         self.current_index = current_index
-        self.track_total = len(tracks)
+        self.track_total = queue_total
         self.rel_time = position.get("RelTime", "")
         self.track_duration = position.get("TrackDuration", "")
         # Freeze the sample time so the entity lets HA extrapolate the progress
         # bar between polls instead of it re-snapping every cycle.
         self.position_updated = dt_util.utcnow()
         return state
+
+    def _log_degraded(self, name: str, err: Exception) -> None:
+        if name in self._reported_failures:
+            _LOGGER.debug("%s %s degraded: %s", self.device.udn, name, err)
+            return
+        self._reported_failures.add(name)
+        _LOGGER.warning(
+            "miyue %s: poll call %s failed, degrading to defaults "
+            "(repeats logged at debug): %s",
+            self.device.udn, name, err,
+        )
 
     async def _async_relocate(self) -> bool:
         """Find a device that stopped answering (rebooted onto a new port/IP).
