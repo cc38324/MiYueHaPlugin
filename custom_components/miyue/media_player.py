@@ -40,6 +40,7 @@ from .const import (
 )
 from .const import ROLE_SLAVE
 from .coordinator import MiyueCoordinator
+from .device import MiyueDevice
 from .didl import duration_to_seconds
 from .soap import SoapError
 from .song_src import (
@@ -453,14 +454,38 @@ class MiyueMediaPlayer(CoordinatorEntity[MiyueCoordinator], MediaPlayerEntity):
     async def async_play_media(
         self, media_type: str, media_id: str, **kwargs
     ) -> None:
-        if media_id.startswith(("http://", "https://")):
-            # Cast an arbitrary stream URL via the standard DLNA path.
-            await self._device.set_av_transport_uri(media_id)
-            await self._device.play()
-        else:
-            # A browsed device-local item (songlist/track/local/queue/NAS).
-            await browsing.async_play(self.hass, self._device, media_id)
+        try:
+            if media_id.startswith(("http://", "https://")):
+                # Cast an arbitrary stream URL via the standard DLNA path.
+                # A group SLAVE is not a valid cast target: it renders the
+                # master's multicast stream, so "play this here" can only mean
+                # the whole group -- cast to the leader instead. The firmware
+                # agrees from the other side: it now rejects an untagged
+                # SetAVTransportURI on a slave (SOAP 705) precisely so a stray
+                # DLNA push can't rip one speaker out of the group.
+                dev = self._cast_target()
+                await dev.set_av_transport_uri(media_id)
+                await dev.play()
+            else:
+                # A browsed device-local item (songlist/track/local/queue/NAS).
+                await browsing.async_play(self.hass, self._device, media_id)
+        except SoapError as err:
+            # Clean toast instead of unknown_error + a full stack.
+            raise HomeAssistantError(str(err)) from err
         await self.coordinator.async_request_refresh()
+
+    def _cast_target(self) -> MiyueDevice:
+        """This speaker, or its group leader when we are a slave."""
+        data = self.coordinator.data
+        if not data or data.group.role != ROLE_SLAVE:
+            return self._device
+        registry = self._shared_registry()
+        _members, leader = grouping.cluster_members(registry, self._device.udn)
+        leader_rt = registry.get(leader) if leader else None
+        # No leader resolved (mid-regroup, or the master isn't a config entry):
+        # fall back to ourselves rather than silently dropping the request --
+        # the firmware's 705 then surfaces as a readable error.
+        return leader_rt.device if leader_rt else self._device
 
     # -- services -----------------------------------------------------------
     async def async_play_tts(

@@ -91,7 +91,11 @@ def parse_didl(didl: str) -> list[MiyueTrack]:
         if res is None:  # some firmwares emit <res> without the default ns prefix
             res = item.find("res")
         title = _text(item, f"{_DC}title")
-        artist = _text(item, f"{_UPNP}artist")
+        # dc:creator is the DIDL-Lite standard field and upnp:artist the UPnP
+        # extension; firmwares differ. Linux emits upnp:artist, the Android
+        # occupier/now-playing DIDL emits dc:creator -- a sync slave's card
+        # showed no artist at all until this fallback. Read both.
+        artist = _text(item, f"{_UPNP}artist") or _text(item, f"{_DC}creator")
         album = _text(item, f"{_UPNP}album")
         song_src = _int_or_none(_text(item, f"{_MIYUE}songSrc"))
         if song_src == 0:  # only local files carry GBK-as-latin1 ID3 tags
