@@ -78,20 +78,19 @@ TTS/音量操作时按成员逐台生效。
 在自动化里用「添加动作 → 场景 → 激活场景」直接选中即可；HA 自带的场景编辑器
 不会（也不该）编辑这些情景——它们的内容归音箱所有。
 
-### 闹钟（switch 实体）
+### 闹钟
 
-音箱上每个闹钟自动成为一个开关实体，名字形如「闹钟 07:30 #3」（#后为 id）；
-开/关即启用/停用。属性里有 `alarm_id`、时间、星期、音量、歌单等完整信息。
+闹钟只在音箱上编辑（手机 App），HA 不做闹钟实体：HA 侧既没有可用的编辑界面，
+闹钟本身也不是「执行」型的东西，放进来只会占位置。
 
 ### 服务（开发者工具 → 动作，或写进自动化）
 
 | 服务 | 说明 |
 |---|---|
 | `miyue.play_tts` | 语音播报。`message` 必填；`volume` 留空=各音箱用自己当前音量（推荐，播完音量不变）；`announce_group: true`（默认）分组时全组齐播 |
-| `miyue.create_alarm` | 建闹钟：`time`("07:30")、`days`(留空=每天)、`volume`、`songlist_id`(歌单id，留空=纯播报)、`tts_text` |
-| `miyue.delete_alarm` | 按 `alarm_id` 删（id 见闹钟开关属性/名字） |
-| `miyue.create_scene` | 建情景：`name`、`songlist_id`、`volume`、`tts_text`、`cmd`(触发码，留空自动生成) |
-| `miyue.delete_scene` | 按 `scene_id` 删（id 见情景实体属性） |
+
+情景的增删改一律在音箱上做，HA 不提供——否则自动化的动作列表里搜「情景/场景」
+先命中的是「创建/删除情景」，真正想用的「激活场景」反而被埋掉了。
 
 自动化示例——门铃响了全屋播报：
 
@@ -160,12 +159,12 @@ automation:
     Björk); device-hosted cover art is proxied through HA so it loads off-LAN.
 - **Scenes (情景)** — scenes are authored **on the speaker**; each enabled one
   becomes a **`scene` entity** HA can activate (`ExecuteSensor`), so automations
-  use the ordinary *Activate scene* action. Create/delete from HA services;
-  scenes deleted on the device are pruned from HA automatically. The `scene_id`
-  for the delete service is shown as an entity attribute.
-- **Alarms (闹钟)** — each alarm becomes a **switch** (enable/disable); create
-  and delete from HA services; deleted alarms are pruned automatically. The
-  `alarm_id` is shown in the switch name and attributes.
+  use the ordinary *Activate scene* action. Scenes deleted on the device are
+  pruned from HA automatically. HA deliberately offers no scene *editing*: it
+  would bury the activate action under create/delete entries in the automation
+  picker, and the speaker owns the scene's contents.
+- **Alarms (闹钟)** — intentionally not exposed. Alarms are edited on the
+  speaker and there is nothing to "run", so an HA entity would be dead weight.
 - **TTS announcements** — `miyue.play_tts` makes a speaker speak, for automation
   linkage; announces to every member of a group.
 - **Cast a URL** via `media_player.play_media`.
@@ -175,8 +174,6 @@ automation:
 | Service | What it does |
 |---|---|
 | `miyue.play_tts` | Speak a message on a speaker (and its group), at a set volume |
-| `miyue.create_alarm` / `miyue.delete_alarm` | Manage device alarms |
-| `miyue.create_scene` / `miyue.delete_scene` | Manage device scenes (情景) |
 
 > **Login-free by design.** This integration never signs in to NetEase / Kugou /
 > Ximalaya. It only browses device-local content (favorites, local files, the
@@ -204,8 +201,7 @@ Requires Home Assistant **2026.7+** (Python 3.14). No extra Python packages.
 ```
                        Home Assistant
    media_player entity ──┬── coordinator (poll ~3s): transport/volume/queue/group/source
-   scene entities ───────┤
-   alarm switches ───────┴── aux coordinator (poll ~30s): scenes + alarms
+   scene entities ───────┴── aux coordinator (poll ~30s): scene list
                          │
                          ├── standard MediaRenderer  ── AVTransport / RenderingControl
                          │        (play/pause/seek/volume, transport state)
@@ -215,8 +211,7 @@ Requires Home Assistant **2026.7+** (Python 3.14). No extra Python packages.
                                   MiyueQueue       → now-playing, play mode, next/prev, enqueue
                                   MiyueLibrary     → browse favorites + local library
                                   MiyueAudioSource → source select
-                                  MiyueAlarmClock  → alarms (switches + services)
-                                  MiyueSensor      → scenes 情景 (scene entities + services)
+                                  MiyueSensor      → scenes 情景 (scene entities, read + fire)
                                   MiyueSystem      → device info, TTS
 ```
 
@@ -240,12 +235,11 @@ The full reverse-engineered wire contract is in
 (`iot_class: local_polling`). Device interactions were validated against live
 hardware (two firmware generations). Working: discovery, transport, volume/mute,
 now-playing, source select, grouping, login-free browse & play, scene entities,
-alarm switches, TTS service.
+TTS service.
 
 **Planned**
 - **GENA push** (`local_push`): subscribe to AVTransport/RenderingControl
   `LastChange` for instant transport/volume state, keep polling as fallback.
-- Scene/alarm **editor UI** (currently create/delete via services).
 - Paging beyond 500 tracks for very large local libraries.
 
 ## Firmware differences handled

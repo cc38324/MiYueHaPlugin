@@ -18,7 +18,7 @@ from .device import MiyueDevice
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.MEDIA_PLAYER, Platform.SCENE, Platform.SWITCH]
+PLATFORMS = [Platform.MEDIA_PLAYER, Platform.SCENE]
 
 
 @dataclass
@@ -58,7 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MiyueConfigEntry) -> boo
     coordinator = MiyueCoordinator(hass, entry, device)
     aux_coordinator = MiyueAuxCoordinator(hass, entry, device)
     await coordinator.async_config_entry_first_refresh()
-    # Aux (scenes/alarms) is non-critical: don't fail setup if it can't load.
+    # Aux (the scene list) is non-critical: don't fail setup if it can't load.
     await aux_coordinator.async_refresh()
 
     runtime = MiyueRuntimeData(
@@ -69,22 +69,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: MiyueConfigEntry) -> boo
 
     await _register_ssdp_rediscovery(hass, entry, runtime)
 
-    _drop_legacy_scene_buttons(hass, entry)
+    _drop_retired_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
 
 @callback
-def _drop_legacy_scene_buttons(hass: HomeAssistant, entry: MiyueConfigEntry) -> None:
-    """Delete the button.* entities scenes used to be exposed as.
+def _drop_retired_entities(hass: HomeAssistant, entry: MiyueConfigEntry) -> None:
+    """Delete registry rows for entity kinds this integration no longer creates.
 
-    Scenes are `scene.*` entities now. Nothing re-creates the old button rows,
-    so without this they linger in the registry forever as unavailable and
-    every scene appears twice in the pickers.
+    - `button.*`: scenes were buttons before they became `scene.*` entities.
+    - `switch.*`: alarm enable/disable switches, dropped because alarms are
+      edited on the speaker and HA offered no way to edit them.
+
+    Nothing re-creates these, so without an explicit removal they linger in the
+    registry forever as unavailable entities and keep polluting the pickers.
     """
     registry = er.async_get(hass)
     for ent in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if ent.domain == "button" and "_scene_" in (ent.unique_id or ""):
+        if ent.domain in ("button", "switch"):
             registry.async_remove(ent.entity_id)
 
 

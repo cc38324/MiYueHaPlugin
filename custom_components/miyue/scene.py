@@ -39,9 +39,10 @@ async def async_setup_entry(
 
     @callback
     def _sync() -> None:
+        # On a failed poll the coordinator keeps its last good data, so this
+        # re-runs against the same list and prunes nothing — entities just go
+        # unavailable. Only an authoritative read can add or remove a scene.
         data = coordinator.data or {}
-        if not data.get("sensors_fresh", True):
-            return  # stale carry-over — never add/prune on it
         current = {
             str(s.get("id")): s
             for s in data.get("sensors", [])

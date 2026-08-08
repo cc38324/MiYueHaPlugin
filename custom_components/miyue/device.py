@@ -22,7 +22,6 @@ from .const import (
     EXTERNAL_INPUT_FLAGS,
     RENDERING_CONTROL,
     ROLE_NONE,
-    ST_ALARM,
     ST_AUDIOSOURCE,
     ST_AVTRANSPORT,
     ST_GROUP,
@@ -475,67 +474,20 @@ class MiyueDevice:
         return (r.get("Result", ""), _to_int(r.get("Total", "0")),
                 _to_int(r.get("CurrentIndex", "-1"), -1))
 
-    # -- MiyueAlarmClock ----------------------------------------------------
-    async def list_alarms(self) -> list[dict]:
-        r = await self._soap.call(
-            miyue_control("MiyueAlarmClock"), ST_ALARM, "ListAlarms"
-        )
-        return _load_json_list(r.get("Alarms", ""))
-
-    async def create_alarm(self, alarm: dict) -> str:
-        r = await self._soap.call(
-            miyue_control("MiyueAlarmClock"), ST_ALARM, "CreateAlarm",
-            {"Json": json.dumps(alarm, ensure_ascii=False)},
-        )
-        return r.get("NewAlarmId", "")
-
-    async def update_alarm(self, alarm: dict) -> None:
-        await self._soap.call(
-            miyue_control("MiyueAlarmClock"), ST_ALARM, "UpdateAlarm",
-            {"Json": json.dumps(alarm, ensure_ascii=False)},
-        )
-
-    async def delete_alarm(self, alarm_id: str) -> None:
-        await self._soap.call(
-            miyue_control("MiyueAlarmClock"), ST_ALARM, "DeleteAlarm",
-            {"AlarmId": str(alarm_id)},
-        )
-
-    async def enable_alarm(self, alarm_id: str, enabled: bool) -> None:
-        await self._soap.call(
-            miyue_control("MiyueAlarmClock"), ST_ALARM, "EnableAlarm",
-            {"AlarmId": str(alarm_id), "Enabled": "1" if enabled else "0"},
-        )
-
     # -- MiyueSensor (scenes / 情景) -----------------------------------------
+    # Read + fire only, by design: scenes (and alarms) are authored on the
+    # speaker. Create/Update/Delete Sensor and the whole MiyueAlarmClock
+    # service are deliberately not wrapped here -- see docs/CONTRACT.md for
+    # their wire format if that decision is ever revisited.
     async def list_sensors(self) -> list[dict]:
         r = await self._soap.call(
             miyue_control("MiyueSensor"), ST_SENSOR, "ListSensors"
         )
         return _load_json_list(r.get("Sensors", ""))
 
-    async def create_sensor(self, scene: dict) -> str:
-        r = await self._soap.call(
-            miyue_control("MiyueSensor"), ST_SENSOR, "CreateSensor",
-            {"Json": json.dumps(scene, ensure_ascii=False)},
-        )
-        return r.get("NewSensorId", "")
-
-    async def update_sensor(self, scene: dict) -> None:
-        await self._soap.call(
-            miyue_control("MiyueSensor"), ST_SENSOR, "UpdateSensor",
-            {"Json": json.dumps(scene, ensure_ascii=False)},
-        )
-
     async def execute_sensor(self, sensor_id: str) -> None:
         await self._soap.call(
             miyue_control("MiyueSensor"), ST_SENSOR, "ExecuteSensor",
-            {"SensorId": str(sensor_id)},
-        )
-
-    async def delete_sensor(self, sensor_id: str) -> None:
-        await self._soap.call(
-            miyue_control("MiyueSensor"), ST_SENSOR, "DeleteSensor",
             {"SensorId": str(sensor_id)},
         )
 

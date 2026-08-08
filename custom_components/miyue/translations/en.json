@@ -29,47 +29,18 @@
       "name": "Play TTS",
       "description": "Speak a text announcement on a MiYue speaker (and optionally its whole group).",
       "fields": {
-        "message": { "name": "Message", "description": "Text to speak." },
-        "volume": { "name": "Volume", "description": "Announce volume, 1-100." },
-        "announce_group": { "name": "Announce to whole group", "description": "Speak on every member if the speaker is grouped." }
-      }
-    },
-    "create_alarm": {
-      "name": "Create alarm",
-      "description": "Create an alarm on a MiYue speaker.",
-      "fields": {
-        "time": { "name": "Time", "description": "Alarm time, 24h HH:MM." },
-        "days": { "name": "Days", "description": "Days to repeat; omit for every day." },
-        "volume": { "name": "Volume", "description": "Ring volume, 1-100." },
-        "duration": { "name": "Auto-stop (minutes)", "description": "Pause the music this many minutes after start; 0 keeps playing." },
-        "songlist_id": { "name": "Songlist id", "description": "Device songlist to play; omit for TTS-only." },
-        "tts_text": { "name": "Spoken text", "description": "Optional text spoken by the alarm." },
-        "enabled": { "name": "Enabled", "description": "Whether the alarm starts enabled." }
-      }
-    },
-    "delete_alarm": {
-      "name": "Delete alarm",
-      "description": "Delete an alarm by id (see the switch's alarm_id attribute).",
-      "fields": {
-        "alarm_id": { "name": "Alarm id", "description": "The device alarm id." }
-      }
-    },
-    "create_scene": {
-      "name": "Create scene",
-      "description": "Create a device scene (情景) activatable from HA.",
-      "fields": {
-        "name": { "name": "Name", "description": "Scene display name." },
-        "songlist_id": { "name": "Songlist id", "description": "Device songlist to play when the scene runs." },
-        "volume": { "name": "Volume", "description": "Scene volume, 1-100." },
-        "tts_text": { "name": "Spoken text", "description": "Optional announcement text." },
-        "cmd": { "name": "Trigger code", "description": "Unique trigger code (KNX/RS-485/custom); auto-generated if omitted." }
-      }
-    },
-    "delete_scene": {
-      "name": "Delete scene",
-      "description": "Delete a scene by id (see the scene entity's scene_id attribute).",
-      "fields": {
-        "scene_id": { "name": "Scene id", "description": "The device scene id." }
+        "message": {
+          "name": "Message",
+          "description": "Text to speak."
+        },
+        "volume": {
+          "name": "Volume",
+          "description": "Announce volume, 1-100."
+        },
+        "announce_group": {
+          "name": "Announce to whole group",
+          "description": "Speak on every member if the speaker is grouped."
+        }
       }
     }
   }

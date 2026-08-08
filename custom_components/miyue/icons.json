@@ -1,17 +1,14 @@
 {
   "entity": {
     "scene": {
-      "scene": { "default": "mdi:play-box-multiple" }
-    },
-    "switch": {
-      "alarm": { "default": "mdi:alarm" }
+      "scene": {
+        "default": "mdi:play-box-multiple"
+      }
     }
   },
   "services": {
-    "play_tts": { "service": "mdi:account-voice" },
-    "create_alarm": { "service": "mdi:alarm-plus" },
-    "delete_alarm": { "service": "mdi:alarm-off" },
-    "create_scene": { "service": "mdi:playlist-plus" },
-    "delete_scene": { "service": "mdi:playlist-remove" }
+    "play_tts": {
+      "service": "mdi:account-voice"
+    }
   }
 }

@@ -212,7 +212,9 @@ Sensors` (JSON array, **no GENA — poll it**), `CreateSensor(Json) → NewSenso
 2 pause / 3 continue / 5 SPDIF). Rules:
 - `cmd` **must be unique and non-empty** — the scene map is keyed by it.
 - `ExecuteSensor` skips the time window but Linux still honors `isOpen` — only
-  expose `isOpen==1` scenes as HA scene entities.
+  expose `isOpen==1` scenes as HA scene entities (read + `ExecuteSensor`
+only; the Create/Update/Delete actions below are documented but not used
+by the integration).
 
 ## TTS (MiyueSystem)
 

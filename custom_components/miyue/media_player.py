@@ -92,14 +92,6 @@ async def async_setup_entry(
     platform = entity_platform.async_get_current_platform()
     platform.async_register_entity_service(
         services.SERVICE_PLAY_TTS, services.PLAY_TTS_SCHEMA, _svc_play_tts)
-    platform.async_register_entity_service(
-        services.SERVICE_CREATE_ALARM, services.CREATE_ALARM_SCHEMA, _svc_create_alarm)
-    platform.async_register_entity_service(
-        services.SERVICE_DELETE_ALARM, services.DELETE_ALARM_SCHEMA, _svc_delete_alarm)
-    platform.async_register_entity_service(
-        services.SERVICE_CREATE_SCENE, services.CREATE_SCENE_SCHEMA, _svc_create_scene)
-    platform.async_register_entity_service(
-        services.SERVICE_DELETE_SCENE, services.DELETE_SCENE_SCHEMA, _svc_delete_scene)
 
 
 # Entity-service handlers receive (entity, ServiceCall) — version-stable form.
@@ -107,22 +99,6 @@ async def _svc_play_tts(entity: "MiyueMediaPlayer", call: ServiceCall) -> None:
     await entity.async_play_tts(
         call.data["message"], call.data.get("volume"),
         call.data["announce_group"])
-
-
-async def _svc_create_alarm(entity: "MiyueMediaPlayer", call: ServiceCall) -> None:
-    await entity.async_create_alarm(dict(call.data))
-
-
-async def _svc_delete_alarm(entity: "MiyueMediaPlayer", call: ServiceCall) -> None:
-    await entity.async_delete_alarm(call.data["alarm_id"])
-
-
-async def _svc_create_scene(entity: "MiyueMediaPlayer", call: ServiceCall) -> None:
-    await entity.async_create_scene(dict(call.data))
-
-
-async def _svc_delete_scene(entity: "MiyueMediaPlayer", call: ServiceCall) -> None:
-    await entity.async_delete_scene(call.data["scene_id"])
 
 
 class MiyueMediaPlayer(CoordinatorEntity[MiyueCoordinator], MediaPlayerEntity):
@@ -519,22 +495,6 @@ class MiyueMediaPlayer(CoordinatorEntity[MiyueCoordinator], MediaPlayerEntity):
                 vol = current if isinstance(current, int) and current >= 1 else 30
             calls.append(rt.device.play_tts(message, vol))
         await asyncio.gather(*calls, return_exceptions=True)
-
-    async def async_create_alarm(self, data: dict) -> None:
-        await self._device.create_alarm(services.build_alarm_json(data))
-        await self._runtime.aux_coordinator.async_request_refresh()
-
-    async def async_delete_alarm(self, alarm_id: str) -> None:
-        await self._device.delete_alarm(alarm_id)
-        await self._runtime.aux_coordinator.async_request_refresh()
-
-    async def async_create_scene(self, data: dict) -> None:
-        await self._device.create_sensor(services.build_scene_json(data))
-        await self._runtime.aux_coordinator.async_request_refresh()
-
-    async def async_delete_scene(self, scene_id: str) -> None:
-        await self._device.delete_sensor(scene_id)
-        await self._runtime.aux_coordinator.async_request_refresh()
 
     # -- helpers ------------------------------------------------------------
     @property

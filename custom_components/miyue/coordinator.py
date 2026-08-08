@@ -275,7 +275,7 @@ class MiyueCoordinator(DataUpdateCoordinator[DeviceState]):
 
 
 class MiyueAuxCoordinator(DataUpdateCoordinator[dict]):
-    """Polls the rarely-changing scene + alarm lists (no GENA push for these)."""
+    """Polls the rarely-changing scene list (no GENA push for it)."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, device) -> None:
         super().__init__(
@@ -288,29 +288,15 @@ class MiyueAuxCoordinator(DataUpdateCoordinator[dict]):
         self.device = device
 
     async def _async_update_data(self) -> dict:
-        # Tolerate one half failing (old firmware may lack a service -> SOAP
-        # 401): keep the previous data for that half instead of wiping it —
-        # an empty list would otherwise cascade into entity removal.
-        sensors: list | None = None
-        alarms: list | None = None
+        # A failed read must NOT wipe the list: an empty one would cascade into
+        # entity removal. Surface the failure so the entities go unavailable
+        # while the coordinator keeps its last good list.
         try:
             sensors = await self.device.list_sensors()
         except SoapError as err:
             _LOGGER.debug("%s ListSensors failed: %s", self.device.udn, err)
-        try:
-            alarms = await self.device.list_alarms()
-        except SoapError as err:
-            _LOGGER.debug("%s ListAlarms failed: %s", self.device.udn, err)
-        if sensors is None and alarms is None:
-            raise UpdateFailed(f"{self.device.udn} aux poll failed")
-        prev = self.data or {}
-        return {
-            "sensors": sensors if sensors is not None else prev.get("sensors", []),
-            "alarms": alarms if alarms is not None else prev.get("alarms", []),
-            # Flags so platforms only prune entities on authoritative reads.
-            "sensors_fresh": sensors is not None,
-            "alarms_fresh": alarms is not None,
-        }
+            raise UpdateFailed(f"{self.device.udn} ListSensors failed") from err
+        return {"sensors": sensors}
 
 
 def _interval(seconds: float):
