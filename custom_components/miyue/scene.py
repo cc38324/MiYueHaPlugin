@@ -1,8 +1,17 @@
-"""Scene (情景 / MiyueSensor) buttons: press = ExecuteSensor."""
+"""Device scenes (情景 / MiyueSensor) as HA scene entities: activate = ExecuteSensor.
+
+Scenes are authored ON THE SPEAKER (app / KNX panel) — HA only reads the list
+and fires them. That is why these are `scene` entities and not `button` ones:
+an integration-provided scene is activate-only (HA's scene editor only edits
+its own `homeassistant`-platform scenes), so the automation editor offers
+"激活场景 / Activate scene" instead of burying the action behind button.press.
+"""
 
 from __future__ import annotations
 
-from homeassistant.components.button import ButtonEntity
+from typing import Any
+
+from homeassistant.components.scene import Scene
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -23,10 +32,10 @@ async def async_setup_entry(
     entry: MiyueConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """One button per enabled scene; add new ones and prune deleted ones."""
+    """One scene entity per enabled device scene; add new, prune deleted."""
     runtime = entry.runtime_data
     coordinator = runtime.aux_coordinator
-    known: dict[str, MiyueSceneButton] = {}
+    known: dict[str, MiyueScene] = {}
 
     @callback
     def _sync() -> None:
@@ -38,7 +47,7 @@ async def async_setup_entry(
             for s in data.get("sensors", [])
             if str(s.get("id", "")) and _is_open(s)
         }
-        # Prune buttons whose scene was deleted or disabled on the device.
+        # Prune entities whose scene was deleted or disabled on the device.
         registry = er.async_get(hass)
         for sid in [s for s in known if s not in current]:
             ent = known.pop(sid)
@@ -47,7 +56,7 @@ async def async_setup_entry(
         new = []
         for sid in current:
             if sid not in known:
-                ent = MiyueSceneButton(runtime, sid)
+                ent = MiyueScene(runtime, sid)
                 known[sid] = ent
                 new.append(ent)
         if new:
@@ -57,8 +66,8 @@ async def async_setup_entry(
     entry.async_on_unload(coordinator.async_add_listener(_sync))
 
 
-class MiyueSceneButton(CoordinatorEntity[MiyueAuxCoordinator], ButtonEntity):
-    """Fire a device scene via ExecuteSensor."""
+class MiyueScene(CoordinatorEntity[MiyueAuxCoordinator], Scene):
+    """Fire a scene stored on the speaker via ExecuteSensor."""
 
     _attr_has_entity_name = True
     _attr_translation_key = "scene"
@@ -105,5 +114,5 @@ class MiyueSceneButton(CoordinatorEntity[MiyueAuxCoordinator], ButtonEntity):
             )
         return attrs
 
-    async def async_press(self) -> None:
+    async def async_activate(self, **kwargs: Any) -> None:
         await self._device.execute_sensor(self._sensor_id)

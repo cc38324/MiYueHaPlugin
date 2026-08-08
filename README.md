@@ -68,11 +68,15 @@ HA 所在机器必须和音箱在**同一局域网**（依赖 SSDP 组播发现�
 `group_members` 属性可见成员列表（主机排第一）；取消勾选即退组。对整组发
 TTS/音量操作时按成员逐台生效。
 
-### 情景（button 实体）
+### 情景（scene 实体）
 
-音箱上每个**启用中**的情景自动成为一个按钮实体（设备页可见），按一下即触发
-（等同手机 App 的「测试」）。设备上删掉的情景会自动从 HA 消失。
-按钮属性里有 `scene_id`（删除服务要用）和触发码 `cmd`。
+情景在**音箱上编辑**（手机 App / KNX 面板），HA 只负责读取和执行：音箱上每个
+**启用中**的情景自动成为一个 `scene.*` 实体，激活即触发（等同手机 App 的
+「测试」）。设备上删掉的情景会自动从 HA 消失。属性里有 `scene_id`（删除服务
+要用）和触发码 `cmd`。
+
+在自动化里用「添加动作 → 场景 → 激活场景」直接选中即可；HA 自带的场景编辑器
+不会（也不该）编辑这些情景——它们的内容归音箱所有。
 
 ### 闹钟（switch 实体）
 
@@ -87,7 +91,7 @@ TTS/音量操作时按成员逐台生效。
 | `miyue.create_alarm` | 建闹钟：`time`("07:30")、`days`(留空=每天)、`volume`、`songlist_id`(歌单id，留空=纯播报)、`tts_text` |
 | `miyue.delete_alarm` | 按 `alarm_id` 删（id 见闹钟开关属性/名字） |
 | `miyue.create_scene` | 建情景：`name`、`songlist_id`、`volume`、`tts_text`、`cmd`(触发码，留空自动生成) |
-| `miyue.delete_scene` | 按 `scene_id` 删（id 见情景按钮属性） |
+| `miyue.delete_scene` | 按 `scene_id` 删（id 见情景实体属性） |
 
 自动化示例——门铃响了全屋播报：
 
@@ -154,10 +158,11 @@ automation:
   - Garbled GBK ID3 tags from **local files** are auto-repaired
     (`ÒôÀÖÈÈËÑ` → `音乐热搜`) without touching real accented names (Björk stays
     Björk); device-hosted cover art is proxied through HA so it loads off-LAN.
-- **Scenes (情景)** — each enabled device scene becomes a **button**; press to
-  run it (`ExecuteSensor`). Create/delete from HA services; scenes deleted on
-  the device are pruned from HA automatically. The `scene_id` for the delete
-  service is shown as a button attribute.
+- **Scenes (情景)** — scenes are authored **on the speaker**; each enabled one
+  becomes a **`scene` entity** HA can activate (`ExecuteSensor`), so automations
+  use the ordinary *Activate scene* action. Create/delete from HA services;
+  scenes deleted on the device are pruned from HA automatically. The `scene_id`
+  for the delete service is shown as an entity attribute.
 - **Alarms (闹钟)** — each alarm becomes a **switch** (enable/disable); create
   and delete from HA services; deleted alarms are pruned automatically. The
   `alarm_id` is shown in the switch name and attributes.
@@ -199,7 +204,7 @@ Requires Home Assistant **2026.7+** (Python 3.14). No extra Python packages.
 ```
                        Home Assistant
    media_player entity ──┬── coordinator (poll ~3s): transport/volume/queue/group/source
-   scene buttons ────────┤
+   scene entities ───────┤
    alarm switches ───────┴── aux coordinator (poll ~30s): scenes + alarms
                          │
                          ├── standard MediaRenderer  ── AVTransport / RenderingControl
@@ -211,7 +216,7 @@ Requires Home Assistant **2026.7+** (Python 3.14). No extra Python packages.
                                   MiyueLibrary     → browse favorites + local library
                                   MiyueAudioSource → source select
                                   MiyueAlarmClock  → alarms (switches + services)
-                                  MiyueSensor      → scenes 情景 (buttons + services)
+                                  MiyueSensor      → scenes 情景 (scene entities + services)
                                   MiyueSystem      → device info, TTS
 ```
 
@@ -234,7 +239,7 @@ The full reverse-engineered wire contract is in
 **v0.2 (this release)** — pure verified SOAP over polling coordinators
 (`iot_class: local_polling`). Device interactions were validated against live
 hardware (two firmware generations). Working: discovery, transport, volume/mute,
-now-playing, source select, grouping, login-free browse & play, scene buttons,
+now-playing, source select, grouping, login-free browse & play, scene entities,
 alarm switches, TTS service.
 
 **Planned**

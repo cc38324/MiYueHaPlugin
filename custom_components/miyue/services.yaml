@@ -108,7 +108,7 @@ delete_alarm:
 
 create_scene:
   name: Create scene
-  description: Create a device scene (情景) that can be run from a button.
+  description: Create a device scene (情景) that can then be activated from HA.
   target:
     entity:
       integration: miyue
@@ -144,7 +144,7 @@ delete_scene:
   name: Delete scene
   description: >-
     Delete a scene by its id. The id is shown as the scene_id attribute of the
-    scene's button entity.
+    scene's scene entity.
   target:
     entity:
       integration: miyue

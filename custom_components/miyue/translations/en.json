@@ -56,7 +56,7 @@
     },
     "create_scene": {
       "name": "Create scene",
-      "description": "Create a device scene (情景) runnable from a button.",
+      "description": "Create a device scene (情景) activatable from HA.",
       "fields": {
         "name": { "name": "Name", "description": "Scene display name." },
         "songlist_id": { "name": "Songlist id", "description": "Device songlist to play when the scene runs." },
@@ -67,7 +67,7 @@
     },
     "delete_scene": {
       "name": "Delete scene",
-      "description": "Delete a scene by id (see the button's scene_id attribute).",
+      "description": "Delete a scene by id (see the scene entity's scene_id attribute).",
       "fields": {
         "scene_id": { "name": "Scene id", "description": "The device scene id." }
       }

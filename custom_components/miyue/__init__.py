@@ -8,7 +8,8 @@ from urllib.parse import urlparse
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CONF_HOST, CONF_LOCATION, CONF_PORT, CONF_UDN, DOMAIN
@@ -17,7 +18,7 @@ from .device import MiyueDevice
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.MEDIA_PLAYER, Platform.BUTTON, Platform.SWITCH]
+PLATFORMS = [Platform.MEDIA_PLAYER, Platform.SCENE, Platform.SWITCH]
 
 
 @dataclass
@@ -68,8 +69,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: MiyueConfigEntry) -> boo
 
     await _register_ssdp_rediscovery(hass, entry, runtime)
 
+    _drop_legacy_scene_buttons(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+@callback
+def _drop_legacy_scene_buttons(hass: HomeAssistant, entry: MiyueConfigEntry) -> None:
+    """Delete the button.* entities scenes used to be exposed as.
+
+    Scenes are `scene.*` entities now. Nothing re-creates the old button rows,
+    so without this they linger in the registry forever as unavailable and
+    every scene appears twice in the pickers.
+    """
+    registry = er.async_get(hass)
+    for ent in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if ent.domain == "button" and "_scene_" in (ent.unique_id or ""):
+            registry.async_remove(ent.entity_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: MiyueConfigEntry) -> bool:

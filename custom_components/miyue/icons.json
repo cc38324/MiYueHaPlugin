@@ -1,6 +1,6 @@
 {
   "entity": {
-    "button": {
+    "scene": {
       "scene": { "default": "mdi:play-box-multiple" }
     },
     "switch": {

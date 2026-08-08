@@ -56,7 +56,7 @@
     },
     "create_scene": {
       "name": "创建情景",
-      "description": "在米悦音箱上创建情景（可通过按钮触发）。",
+      "description": "在米悦音箱上创建情景（创建后可在 HA 内激活）。",
       "fields": {
         "name": { "name": "名称", "description": "情景显示名。" },
         "songlist_id": { "name": "歌单 id", "description": "情景触发时播放的设备歌单。" },
@@ -67,7 +67,7 @@
     },
     "delete_scene": {
       "name": "删除情景",
-      "description": "按 id 删除情景（id 见情景按钮实体的 scene_id 属性）。",
+      "description": "按 id 删除情景（id 见情景实体的 scene_id 属性）。",
       "fields": {
         "scene_id": { "name": "情景 id", "description": "设备上的情景 id。" }
       }
