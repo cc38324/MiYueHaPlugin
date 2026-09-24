@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:schemas-upnp-org:service-1-0">
+  <specVersion><major>1</major><minor>0</minor></specVersion>
+  <actionList>
+    <action>
+      <name>GetQueue</name>
+      <argumentList>
+        <argument><name>StartIndex</name><direction>in</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+        <argument><name>RequestedCount</name><direction>in</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+        <argument><name>Result</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Count</name><direction>out</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+        <argument><name>Total</name><direction>out</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+        <argument><name>CurrentIndex</name><direction>out</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>ReplaceQueue</name>
+      <argumentList>
+        <argument><name>Items</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>StartingIndex</name><direction>in</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+        <argument><name>NewQueueLength</name><direction>out</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>AppendQueue</name>
+      <argumentList>
+        <argument><name>Items</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>InsertAt</name><direction>in</direction><relatedStateVariable>A_ARG_I4</relatedStateVariable></argument>
+        <argument><name>NewQueueLength</name><direction>out</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>RemoveTrack</name>
+      <argumentList>
+        <argument><name>Index</name><direction>in</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action><name>RemoveAllTracks</name></action>
+    <action>
+      <name>SeekToTrack</name>
+      <argumentList>
+        <argument><name>Index</name><direction>in</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>GetPlayMode</name>
+      <argumentList>
+        <argument><name>PlayMode</name><direction>out</direction><relatedStateVariable>A_ARG_PlayMode</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>SetPlayMode</name>
+      <argumentList>
+        <argument><name>PlayMode</name><direction>in</direction><relatedStateVariable>A_ARG_PlayMode</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>GetHistory</name>
+      <argumentList>
+        <argument><name>Result</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Total</name><direction>out</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+  </actionList>
+  <serviceStateTable>
+    <stateVariable sendEvents="yes"><name>LastChange</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="yes"><name>HistoryLastChange</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_Str</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_UI4</name><dataType>ui4</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_I4</name><dataType>i4</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_PlayMode</name><dataType>string</dataType><allowedValueList><allowedValue>NORMAL</allowedValue><allowedValue>REPEAT_ONE</allowedValue><allowedValue>REPEAT_ALL</allowedValue><allowedValue>SHUFFLE</allowedValue></allowedValueList></stateVariable>
+  </serviceStateTable>
+</scpd>

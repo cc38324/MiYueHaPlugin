@@ -1,0 +1,13 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:GetGroupInfoResponse xmlns:u="urn:miyue-hk:service:MiyueGroup:1">
+<Role>None</Role>
+<GroupID>064c69619ceb4fe393a795de075f</GroupID>
+<MasterIp></MasterIp>
+<MulticastAddr>239.10.100.214</MulticastAddr>
+<MulticastPort>23125</MulticastPort>
+<SyncPort>23126</SyncPort>
+<ControlPort>23127</ControlPort>
+<DeviceUUID>uuid:064c6961-9ceb-4fe3-93a7-95de075feb9c</DeviceUUID>
+<DeviceName>餐厅</DeviceName>
+</u:GetGroupInfoResponse>
+</s:Body> </s:Envelope>

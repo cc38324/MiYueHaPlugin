@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:schemas-upnp-org:service-1-0">
+  <specVersion><major>1</major><minor>0</minor></specVersion>
+  <actionList>
+    <action>
+      <name>StartOtaUpdate</name>
+      <argumentList>
+        <argument><name>Url</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Md5</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Size</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Version</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action><name>StartOtaUpdateLocal</name></action>
+  </actionList>
+  <serviceStateTable>
+    <stateVariable sendEvents="yes"><name>LastChange</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_Str</name><dataType>string</dataType></stateVariable>
+  </serviceStateTable>
+</scpd>

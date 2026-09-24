@@ -1,0 +1,11 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:GetExternalInputsResponse xmlns:u="urn:miyue-hk:service:MiyueAudioSource:1">
+<WithAux>0</WithAux>
+<OpenAux>0</OpenAux>
+<WithSpdif>1</WithSpdif>
+<OpenSpdif>0</OpenSpdif>
+<WithBluetooth>1</WithBluetooth>
+<OpenBluetooth>0</OpenBluetooth>
+<BluetoothStatus>0</BluetoothStatus>
+</u:GetExternalInputsResponse>
+</s:Body> </s:Envelope>

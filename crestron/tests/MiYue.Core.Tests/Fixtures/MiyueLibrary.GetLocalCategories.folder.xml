@@ -1,0 +1,5 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:GetLocalCategoriesResponse xmlns:u="urn:miyue-hk:service:MiyueLibrary:1">
+<Categories>[{&quot;key&quot;:&quot;/data/ftp/pub/GT场景音乐&quot;,&quot;name&quot;:&quot;GT场景音乐&quot;,&quot;count&quot;:33,&quot;icon&quot;:&quot;&quot;},{&quot;key&quot;:&quot;/data/ftp/pub&quot;,&quot;name&quot;:&quot;pub&quot;,&quot;count&quot;:1,&quot;icon&quot;:&quot;&quot;},{&quot;key&quot;:&quot;/data/ftp/pub/深圳场景音乐/动态1&quot;,&quot;name&quot;:&quot;动态1&quot;,&quot;count&quot;:24,&quot;icon&quot;:&quot;&quot;},{&quot;key&quot;:&quot;/data/ftp/pub/深圳场景音乐/动态2&quot;,&quot;name&quot;:&quot;动态2&quot;,&quot;count&quot;:21,&quot;icon&quot;:&quot;&quot;},{&quot;key&quot;:&quot;/data/ftp/pub/深圳场景音乐/动态3&quot;,&quot;name&quot;:&quot;动态3&quot;,&quot;count&quot;:7,&quot;icon&quot;:&quot;&quot;},{&quot;key&quot;:&quot;/data/ftp/pub/英文歌&quot;,&quot;name&quot;:&quot;英文歌&quot;,&quot;count&quot;:9,&quot;icon&quot;:&quot;&quot;}]</Categories>
+</u:GetLocalCategoriesResponse>
+</s:Body> </s:Envelope>

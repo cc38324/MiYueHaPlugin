@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:schemas-upnp-org:service-1-0">
+  <specVersion><major>1</major><minor>0</minor></specVersion>
+  <actionList>
+    <action>
+      <name>GetCapability</name>
+      <argumentList>
+        <argument><name>HasMic</name>        <direction>out</direction><relatedStateVariable>HasMic</relatedStateVariable></argument>
+        <argument><name>HasDenoise</name>    <direction>out</direction><relatedStateVariable>HasDenoise</relatedStateVariable></argument>
+        <argument><name>MulticastAddr</name> <direction>out</direction><relatedStateVariable>MulticastAddr</relatedStateVariable></argument>
+        <argument><name>MulticastPort</name> <direction>out</direction><relatedStateVariable>MulticastPort</relatedStateVariable></argument>
+        <argument><name>DeviceName</name>    <direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>StartTalk</name>
+      <argumentList/>
+    </action>
+    <action>
+      <name>StopTalk</name>
+      <argumentList/>
+    </action>
+    <action>
+      <name>Invite</name>
+      <argumentList>
+        <argument><name>SessionId</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>FromUUID</name> <direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>FromName</name> <direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>FromIP</name>   <direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Accepted</name> <direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>HasMic</name>   <direction>out</direction><relatedStateVariable>HasMic</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>Leave</name>
+      <argumentList>
+        <argument><name>SessionId</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>FromUUID</name> <direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>FromIP</name>   <direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Reason</name>   <direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+  </actionList>
+  <serviceStateTable>
+    <stateVariable sendEvents="yes"><name>IsTalking</name><dataType>boolean</dataType></stateVariable>
+    <stateVariable sendEvents="yes"><name>TalkingPeerName</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="yes"><name>SessionState</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>SessionPeer</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>HasMic</name><dataType>boolean</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>HasDenoise</name><dataType>boolean</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>MulticastAddr</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>MulticastPort</name><dataType>ui4</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_Str</name><dataType>string</dataType></stateVariable>
+  </serviceStateTable>
+</scpd>

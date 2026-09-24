@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:schemas-upnp-org:service-1-0">
+  <specVersion><major>1</major><minor>0</minor></specVersion>
+  <actionList>
+    <action>
+      <name>ListAlarms</name>
+      <argumentList>
+        <argument><name>Alarms</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>CreateAlarm</name>
+      <argumentList>
+        <argument><name>Json</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>NewAlarmId</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>UpdateAlarm</name>
+      <argumentList>
+        <argument><name>Json</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>DeleteAlarm</name>
+      <argumentList>
+        <argument><name>AlarmId</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>EnableAlarm</name>
+      <argumentList>
+        <argument><name>AlarmId</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Enabled</name><direction>in</direction><relatedStateVariable>A_ARG_UI4</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+  </actionList>
+  <serviceStateTable>
+    <stateVariable sendEvents="yes"><name>LastChange</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_Str</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_UI4</name><dataType>ui4</dataType></stateVariable>
+  </serviceStateTable>
+</scpd>

@@ -1,0 +1,5 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:GetCollectedBoardsResponse xmlns:u="urn:miyue-hk:service:MiyueLibrary:1">
+<Boards>[{&quot;id&quot;:&quot;4&quot;,&quot;name&quot;:&quot;云音乐飙升榜&quot;,&quot;icon&quot;:&quot;&quot;,&quot;boardId&quot;:&quot;19723756&quot;,&quot;boardSrc&quot;:1,&quot;count&quot;:0},{&quot;id&quot;:&quot;6&quot;,&quot;name&quot;:&quot;云音乐新歌榜&quot;,&quot;icon&quot;:&quot;&quot;,&quot;boardId&quot;:&quot;3779629&quot;,&quot;boardSrc&quot;:1,&quot;count&quot;:0}]</Boards>
+</u:GetCollectedBoardsResponse>
+</s:Body> </s:Envelope>

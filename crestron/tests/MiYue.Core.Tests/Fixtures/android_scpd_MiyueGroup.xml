@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:schemas-upnp-org:service-1-0">
+  <specVersion><major>1</major><minor>0</minor></specVersion>
+  <actionList>
+    <action>
+      <name>SetGroupConfig</name>
+      <argumentList>
+        <argument><name>TargetUUID</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>GroupID</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>MasterIp</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>MulticastAddr</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>Role</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>SetVolume</name>
+      <argumentList>
+        <argument><name>Volume</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action><name>LeaveGroup</name></action>
+    <action>
+      <name>GetGroupInfo</name>
+      <argumentList>
+        <argument><name>Role</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>GroupID</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>MasterIp</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>MulticastAddr</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>MulticastPort</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>SyncPort</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>ControlPort</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>DeviceUUID</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>DeviceName</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>GetMemberList</name>
+      <argumentList>
+        <argument><name>MemberUUIDs</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>MemberNames</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+  </actionList>
+  <serviceStateTable>
+    <stateVariable sendEvents="yes"><name>LastChange</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_Str</name><dataType>string</dataType></stateVariable>
+  </serviceStateTable>
+</scpd>

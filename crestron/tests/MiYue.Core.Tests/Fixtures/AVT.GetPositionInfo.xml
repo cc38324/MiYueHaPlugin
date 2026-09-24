@@ -1,0 +1,12 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:GetPositionInfoResponse xmlns:u="urn:schemas-upnp-org:service:AVTransport:1">
+<Track>1</Track>
+<TrackDuration>00:04:20</TrackDuration>
+<TrackMetaData>&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot; xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot; xmlns:miyue=&quot;urn:miyue-hk:metadata&quot;&gt;&lt;item id=&quot;nowplaying&quot; parentID=&quot;-1&quot; restricted=&quot;1&quot;&gt;&lt;dc:title&gt;The Look Of Love&lt;/dc:title&gt;&lt;dc:creator&gt;Diana Krall&lt;/dc:creator&gt;&lt;upnp:artist&gt;Diana Krall&lt;/upnp:artist&gt;&lt;upnp:album&gt;The Look Of Love&lt;/upnp:album&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;miyue:songSrc&gt;25&lt;/miyue:songSrc&gt;&lt;upnp:albumArtURI&gt;https://static.qobuz.com/images/covers/95/15/0060253771595_600.jpg&lt;/upnp:albumArtURI&gt;&lt;res duration=&quot;00:04:20&quot;&gt;&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</TrackMetaData>
+<TrackURI>airplay://current</TrackURI>
+<RelTime>00:01:25</RelTime>
+<AbsTime>00:01:25</AbsTime>
+<RelCount>0</RelCount>
+<AbsCount>0</AbsCount>
+</u:GetPositionInfoResponse>
+</s:Body> </s:Envelope>

@@ -1,0 +1,14 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:GetDeviceInfoResponse xmlns:u="urn:miyue-hk:service:MiyueSystem:1">
+<Name>餐厅</Name>
+<Manufacturer>MiYue</Manufacturer>
+<Model>M100</Model>
+<ModelNumber>M100</ModelNumber>
+<SerialNumber>TM100A50210134</SerialNumber>
+<SoftwareVersion>3.3</SoftwareVersion>
+<IPAddress>192.168.1.47</IPAddress>
+<Role>None</Role>
+<GroupID>064c69619ceb4fe393a795de075f</GroupID>
+<DeviceUUID>uuid:064c6961-9ceb-4fe3-93a7-95de075feb9c</DeviceUUID>
+</u:GetDeviceInfoResponse>
+</s:Body> </s:Envelope>

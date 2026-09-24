@@ -1,0 +1,6 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:GetLocalCategoryTracksResponse xmlns:u="urn:miyue-hk:service:MiyueLibrary:1">
+<Result>&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot; xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot; xmlns:miyue=&quot;urn:miyue-hk:metadata&quot;&gt;&lt;item id=&quot;a7119eb28f69808944a0fa1754b01cc7&quot; parentID=&quot;-1&quot; restricted=&quot;1&quot;&gt;&lt;dc:title&gt;Psycho (Pt. 2)&lt;/dc:title&gt;&lt;upnp:artist&gt;Russ&lt;/upnp:artist&gt;&lt;dc:creator&gt;Russ&lt;/dc:creator&gt;&lt;upnp:album&gt;Psycho (Pt. 2)&lt;/upnp:album&gt;&lt;upnp:class&gt;object.item.audioItem.musicTrack&lt;/upnp:class&gt;&lt;miyue:musicId&gt;99&lt;/miyue:musicId&gt;&lt;miyue:songSrc&gt;0&lt;/miyue:songSrc&gt;&lt;miyue:songId&gt;a7119eb28f69808944a0fa1754b01cc7&lt;/miyue:songId&gt;&lt;res protocolInfo=&quot;http-get:*:audio/mpeg:*&quot; duration=&quot;0:00:00&quot;&gt;&lt;/res&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;</Result>
+<Total>1</Total>
+</u:GetLocalCategoryTracksResponse>
+</s:Body> </s:Envelope>

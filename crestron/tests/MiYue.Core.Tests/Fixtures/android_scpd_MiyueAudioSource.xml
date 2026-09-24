@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:schemas-upnp-org:service-1-0">
+  <specVersion><major>1</major><minor>0</minor></specVersion>
+  <actionList>
+    <action>
+      <name>GetExternalInputs</name>
+      <argumentList>
+        <argument><name>WithAux</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>OpenAux</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>WithSpdif</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>OpenSpdif</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>WithBluetooth</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>OpenBluetooth</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>BluetoothStatus</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>SelectSource</name>
+      <argumentList>
+        <argument><name>Source</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>SetInputOpen</name>
+      <argumentList>
+        <argument><name>Source</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>On</name><direction>in</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+    <action>
+      <name>QueryModules</name>
+      <argumentList>
+        <argument><name>HasBluetooth</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+        <argument><name>HasSpdif</name><direction>out</direction><relatedStateVariable>A_ARG_Str</relatedStateVariable></argument>
+      </argumentList>
+    </action>
+  </actionList>
+  <serviceStateTable>
+    <stateVariable sendEvents="yes"><name>LastChange</name><dataType>string</dataType></stateVariable>
+    <stateVariable sendEvents="no"><name>A_ARG_Str</name><dataType>string</dataType></stateVariable>
+  </serviceStateTable>
+</scpd>

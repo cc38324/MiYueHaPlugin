@@ -1,0 +1,11 @@
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+# SIMPL+ / SIMPL# build output (compiled on Windows, not tracked)
+SPlsWork/
+*.clz
+*.ush
+*.umcx

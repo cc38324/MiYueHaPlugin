@@ -1,0 +1,6 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:GetHistoryResponse xmlns:u="urn:miyue-hk:service:MiyueQueue:1">
+<Result>&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot; xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot; xmlns:miyue=&quot;urn:miyue-hk:metadata&quot;&gt;&lt;/DIDL-Lite&gt;</Result>
+<Total>0</Total>
+</u:GetHistoryResponse>
+</s:Body> </s:Envelope>

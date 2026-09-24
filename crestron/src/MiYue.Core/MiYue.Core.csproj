@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pure protocol / state-machine logic for the MiYue Crestron driver.
+    NO Crestron dependency: everything here must build and test with plain `dotnet test`
+    on Linux/Windows/macOS. The Crestron adapter (MiYue.Crestron) supplies the HTTP
+    transport, timers, logging and the SIMPL+ plumbing through the interfaces in
+    Engine/Abstractions.cs.
+  -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <RootNamespace>MiYue.Core</RootNamespace>
+    <AssemblyName>MiYue.Core</AssemblyName>
+    <Version>1.0.0</Version>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

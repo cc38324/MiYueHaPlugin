@@ -1,0 +1,351 @@
+{
+  "_meta": {
+    "verified_on": "2026-09-09",
+    "live_device_write": "192.168.1.47 (M100, Android fw, UPnP port 49495, UDN uuid:064c6961-9ceb-4fe3-93a7-95de075feb9c, Role None)",
+    "live_device_readonly": "192.168.1.170 (M210B, Linux fw 171741, port 49495)",
+    "sources": {
+      "linux": "D:/project/miyuemusic-m100/MiYueMusic/MYDevice/MYUpnp/{MiyueLibrary,MiyueQueue,MiyueAudioSource,MiyueSystem,DlnaController,UpnpManager}.cpp, MYFavorites/FavoritesStore.cpp, MYCommons/global.cpp, MYPlayerManage/MYTTS/MYTTSPlayer.cpp",
+      "android": "D:/project/Miyuemusic_m320/app/src/main/cpp/Upnp/{UpnpManager,DlnaController}.cpp, java/hk/miyue/miyuemusic/upnp/UpnpNativeBridge.java, service/{CommandService,MusicService}.java, tts/TtsManager.java, controller/AuxSpdifManager.java"
+    },
+    "probe_logs": "scratchpad stage1.log / stage2.log / stage3.log (SOAP transcripts summarised in notes below)"
+  },
+  "collect_track": {
+    "service": "MiyueLibrary",
+    "action": "AddTrackToSonglist",
+    "args_template": {
+      "SonglistId": "-1",
+      "Items": "<DIDL-Lite ...><item>...raw item from any Get*Tracks/GetLocalSongs/GetQueue...</item></DIDL-Lite>"
+    },
+    "returns": {
+      "Added": "number of rows inserted"
+    },
+    "notes": [
+      "SonglistId semantics: -1 = 我喜欢的/Liked (collected music), -2 = collected radios, >0 = user songlist _id. Linux MiyueLibrary.cpp:761-766 (comment + libAtoiSafe default -1), 608-612; Android UpnpManager.cpp:2420-2432 -> UpnpNativeBridge.java:1711-1767.",
+      "Radio items (songSrc 8) are forced into -2 regardless of SonglistId on both firmwares (Android UpnpNativeBridge.java:1730-1734; Linux FavoritesStore.cpp:76-81) - so this single call also works for radios, but CollectRadio is the explicit action.",
+      "LIVE 192.168.1.47: AddTrackToSonglist(SonglistId=-1, Items=wrap(local song raw)) -> {Added:1}; GetCollectedMusic then listed it at position 0 (newest first) with <miyue:musicId>286</miyue:musicId>, id=songId (32-hex), songSrc 0.",
+      "NO DEDUP on Android for local tracks: a second identical AddTrackToSonglist returned Added=1 and created a second row (musicId 287). Driver should check GetCollectedMusic by songId/title before collecting. (Android dedup uses MusicInfo.equals which compares id/songId only for netease/kugou/ximalaya sources.)",
+      "IsTrackCollected(TrackId=songId) returned Collected=0 on Android even for a collected netease songId (5275383) - do not rely on it on Android; use GetCollectedMusic contents.",
+      "Liked list returned by GetCollectedMusic is ordered COLLECT_TIME DESC (Linux MiyueLibrary.cpp:72-74)."
+    ]
+  },
+  "remove_collected_music": {
+    "service": "MiyueLibrary",
+    "action": "RemoveTrackFromSonglist",
+    "args_template": {
+      "SonglistId": "-1",
+      "MusicId": "<miyue:musicId> of the item as returned by GetCollectedMusic"
+    },
+    "returns": {},
+    "notes": [
+      "MusicId MUST be the collectedMusic row id = <miyue:musicId> (NOT the item id / songId). Linux MiyueLibrary.cpp:809-820 (comment 'MusicId = collectedMusic 本地 _id(= DIDL miyue:musicId)', musicId>0 only, deletes by _id via FavoritesStore.cpp:131-140 regardless of SonglistId); Android UpnpNativeBridge.java:710-724 (getMusicById(musicId).deleteMusic; SonglistId ignored).",
+      "Passing the item id would either be non-numeric (local: 32-hex -> atoi fails -> no-op) or a numeric songId that could collide with an unrelated row id - never do it.",
+      "LIVE: RemoveTrackFromSonglist(-1, MusicId=286/287) -> 200 empty response; GetCollectedMusic count back to original (6). Response has no out args (empty <u:RemoveTrackFromSonglistResponse/>)."
+    ]
+  },
+  "remove_collected_radio": {
+    "service": "MiyueLibrary",
+    "action": "RemoveTrackFromSonglist",
+    "args_template": {
+      "SonglistId": "-2",
+      "MusicId": "<miyue:musicId> of the item from GetCollectedRadios"
+    },
+    "returns": {},
+    "notes": [
+      "Radios live in collectedMusic with SONG_LIST_ID=-2 (Linux MiyueLibrary.cpp:609, 622-627); the same row-id delete removes them. No CollectRadio toggle exists (CollectRadio only adds, dedup by title on Linux FavoritesStore.cpp:87-98 / by MusicInfo.equals on Android UpnpNativeBridge.java:1793-1812).",
+      "LIVE: CollectRadio(Items=synthetic radio 'C4TEST radio', songSrc 8, m3u8 res) -> Added=1, GetCollectedRadios showed it with musicId 286; RemoveTrackFromSonglist(SonglistId=-2, MusicId=286) -> 200; GetCollectedRadios back to the original single entry (上海新闻广播, musicId 282)."
+    ]
+  },
+  "remove_collected_board": {
+    "service": "MiyueLibrary",
+    "action": "DeleteSonglist",
+    "args_template": {
+      "SonglistId": "<id> from GetCollectedBoards JSON [{id,name,icon,boardId,boardSrc,count}]"
+    },
+    "returns": {},
+    "notes": [
+      "Boards are songlist rows with IS_COLLECTED=1 (Linux MiyueLibrary.cpp:611, 634-640). DeleteSonglist deletes the songlist row + its collectedMusic rows: Linux MiyueLibrary.cpp:833-848 (no guard, id>0), Android UpnpNativeBridge.java:725-749 (allows SONGLISTSRC_SELF or isCollected boards; refuses cache dirs).",
+      "LIVE: CollectBoard(Name='C4TEST board', IconUrl='', BoardId='c4test-board', BoardSrc='1') -> board id 24 appeared first in GetCollectedBoards; DeleteSonglist(SonglistId=24) -> 200; GetCollectedBoards identical to before.",
+      "Re-collecting a board needs CollectBoard(Name, IconUrl, BoardId, BoardSrc) (the driver's AddColletedBoards can stay a no-op as boards listed are already collected)."
+    ]
+  },
+  "delete_songlist": {
+    "service": "MiyueLibrary",
+    "action": "DeleteSonglist",
+    "args_template": {
+      "SonglistId": "<id> from GetCollectedSonglists JSON"
+    },
+    "returns": {},
+    "notes": [
+      "Same action for user songlists and boards. Linux MiyueLibrary.cpp:833-848; Android UpnpNativeBridge.java:725-749.",
+      "LIVE: CreateSonglist(Name='C4TEST list') -> NewSonglistId=25 (listed first in GetCollectedSonglists, count 0); DeleteSonglist(25) -> 200; list identical to before.",
+      "CreateSonglist returns the existing id when a same-name list exists (Linux MiyueLibrary.cpp:543-549; Android :1770-1790)."
+    ]
+  },
+  "append_queue": {
+    "service": "MiyueQueue",
+    "action": "AppendQueue",
+    "args_template": {
+      "Items": "<DIDL-Lite>...</DIDL-Lite>",
+      "InsertAt": "-1 | <0-based position>"
+    },
+    "returns": {
+      "NewQueueLength": "new total (Linux computes before insert: old+new)"
+    },
+    "insert_at_end": "-1 (also empty string or any value > queue length; missing arg = end)",
+    "insert_at_next_expr": "GetQueue.CurrentIndex + 1 (only when CurrentIndex >= 0; if CurrentIndex < 0 use -1/end)",
+    "index_base": 0,
+    "notes": [
+      "Linux MiyueQueue.cpp:471-474 (default -1), 539-549 (at<0||at>sz -> sz; inserts at at+i; if at <= curIndex the current index shifts by the number inserted). Android UpnpNativeBridge.java:623-659 (insertAt<0 -> append whole list; else addSingleMusic(item, insertAt+i) -> MusicService.java:3213-3230 insertPlayNext: clamps to size, index++ when index >= insertAt).",
+      "Never auto-plays (Linux comment 539 '均不自动起播'; Android only mutates list).",
+      "Radio items (songSrc 8/14/16) appended on Linux are DROPPED silently (MiyueQueue.cpp:486-513, NewQueueLength = unchanged length).",
+      "LIVE (queue 53, CurrentIndex 2): InsertAt=-1 -> NewQueueLength 54, item at index 53, CurrentIndex 2. InsertAt='' -> same (end). InsertAt=3 (cur+1) -> item at 3, index 2 unchanged, item 2 unchanged. InsertAt=0 -> item at 0, CurrentIndex became 3. InsertAt=999 -> end. Each undone with RemoveTrack and the id list matched the original."
+    ]
+  },
+  "replace_queue": {
+    "service": "MiyueQueue",
+    "action": "ReplaceQueue",
+    "args_template": {
+      "Items": "<DIDL-Lite>...</DIDL-Lite>",
+      "StartingIndex": "<0-based index to start playing>"
+    },
+    "returns": {
+      "NewQueueLength": "count of parsed items"
+    },
+    "starting_index_base": 0,
+    "autoplay": true,
+    "settle_ms": 1500,
+    "notes": [
+      "Linux MiyueQueue.cpp:522-537: replaces m_curPlaylist, idx clamped to 0 if out of range, mq_startIndex(idx) plays. Android UpnpNativeBridge.java:586-622: setMusicList(list) + playSpecialMusic(si) only if si >= 0 (parseIntSafe default 0) - so send an explicit non-negative StartingIndex; a negative value would NOT autoplay on Android.",
+      "Radio (songSrc 8) at StartingIndex: overlay play, queue NOT replaced, CurrentIndex becomes -100 (Linux 480-496, 516-521; Android 604-613 setNPlayCurrentMusic).",
+      "Empty Items on Linux -> stop (528-531).",
+      "LIVE timing: ReplaceQueue(local track, 0) response in ~80 ms; GetTransportInfo went PAUSED_PLAYBACK -> PLAYING after 847 ms (polls at 0.03/0.30/0.58/0.85 s). ReplaceQueue(6 netease collected tracks, 0) while already PLAYING -> PLAYING immediately and GetPositionInfo title = expected within 2 s. Pause -> PAUSED_PLAYBACK in ~15-40 ms; Play -> PLAYING in ~1.1 s. Recommend: poll every 300-500 ms up to 6 s for PLAYING; do not assume.",
+      "LIVE CAUTION: the device's own 53-track Qobuz (songSrc 25) queue was unplayable (no account/stream); ReplaceQueue/SeekToTrack/Play on it never reached PLAYING and CurrentIndex drifted +1..2 per command (error-skip churn). The driver must re-read GetQueue.CurrentIndex after commands instead of trusting the index it sent."
+    ]
+  },
+  "seek_to_track": {
+    "service": "MiyueQueue",
+    "action": "SeekToTrack",
+    "args_template": {
+      "Index": "<0-based index from GetQueue>"
+    },
+    "index_base": 0,
+    "notes": [
+      "Linux MiyueQueue.cpp:599-618 (index in [0,size) -> setCurIndex + play; also takes over from Bluetooth/AirPlay/AUX owners). Android UpnpNativeBridge.java:660-670 -> playSpecialMusic(index) (MusicService.java:1443-1455, index < size).",
+      "LIVE: SeekToTrack(1) on the 6-track collected queue -> CurrentIndex 1, PLAYING, GetPositionInfo title = queue[1] ('都一样').",
+      "Starts playback even if the device was paused."
+    ]
+  },
+  "remove_track": {
+    "service": "MiyueQueue",
+    "action": "RemoveTrack",
+    "args_template": {
+      "Index": "<0-based index>"
+    },
+    "index_base": 0,
+    "notes": [
+      "Linux MiyueQueue.cpp:561-583 (out-of-range ignored; index<cur -> cur--; index==cur -> relocate or stop). Android UpnpNativeBridge.java:671-681 -> removeMusicInfo (MusicService.java:1597-1602: removing the current track first calls nextMusic()).",
+      "LIVE: RemoveTrack(53) after append -> total 53 again; RemoveTrack(0) after inserting at 0 -> CurrentIndex back from 3 to 2; RemoveTrack(999) -> 200, no change. Response has no out args."
+    ]
+  },
+  "get_queue": {
+    "service": "MiyueQueue",
+    "action": "GetQueue",
+    "args_template": {
+      "StartIndex": 0,
+      "RequestedCount": 500
+    },
+    "returns": {
+      "Result": "DIDL-Lite",
+      "Count": "items returned",
+      "Total": "queue length",
+      "CurrentIndex": "0-based or negative sentinel"
+    },
+    "current_index_when_idle": "-1 when the queue is empty (LIVE after RemoveAllTracks: Total 0, Count 0, CurrentIndex -1, Result = empty DIDL container). When paused with a queue the real index is returned (LIVE: PAUSED_PLAYBACK -> CurrentIndex 2). While an external source owns playback a negative sentinel is returned: -100 radio, -101 DLNA, -102 AirPlay, -103 AUX, -104 SPDIF (Linux; Android reported -103 while SPDIF was open), -105 sync slave, -106 Bluetooth, -107 TTS, -108 voice, -109 intercom (Linux global.cpp:179-197, MiyueQueue.cpp:450-454; Android UpnpNativeBridge.java:2283-2284 binder index; sentinels defined in MusicService.java:2445-2454: -103 AUX, -104 SPDIF, -100 radio - live SPDIF-open read -103 on Android). Treat any CurrentIndex < 0 as 'no queue index'.",
+    "notes": [
+      "RequestedCount 0 = all (Linux 446; Android 2235).",
+      "Items: id = songId if present else db _id; <res> URL is empty except DMS (songSrc 21) on Android (2269-2278); duration attr 'h:mm:ss' with unpadded hours.",
+      "GetTimeline exists only on Linux (Android .47 -> fault 501)."
+    ]
+  },
+  "play_modes": [
+    "NORMAL",
+    "REPEAT_ALL",
+    "REPEAT_ONE",
+    "SHUFFLE"
+  ],
+  "play_mode_notes": [
+    "SetPlayMode(PlayMode) is case-insensitive; any other/empty value -> NORMAL (Linux MiyueQueue.cpp:621-638; Android UpnpNativeBridge.java:692-709). GetPlayMode returns exactly one of the four (Linux 641-650). Device mapping: NORMAL=顺序(3) REPEAT_ALL=列表循环(0) REPEAT_ONE=1 SHUFFLE=2.",
+    "LIVE: NORMAL/REPEAT_ONE/SHUFFLE/REPEAT_ALL each read back identically; 'repeat_one' -> REPEAT_ONE; 'FOO' and '' -> NORMAL. AVTransport.SetPlayMode(NewPlayMode=REPEAT_ALL) also maps into the same state (Android). Restored to REPEAT_ALL."
+  ],
+  "select_source": {
+    "service": "MiyueAudioSource",
+    "action": "SelectSource",
+    "values": [
+      "SPDIF",
+      "Coaxial",
+      "Bluetooth",
+      "BT",
+      "AUX",
+      "Music",
+      "Off"
+    ],
+    "music_semantics": "'Music' (and 'Off' / anything unrecognised) = close all external inputs and return to the local player: Linux MiyueAudioSource.cpp:133-146 (switchBluetooth(false) if BT on, stop SPDIF and setCurPlaySource(FFMPEG)); Android CommandService.java:1293-1310 -> switchSource('Music', false) (1279-1289: stops AUX/SPDIF capture only, Bluetooth left alone). It does NOT resume the queue by itself - send AVTransport.Play/SeekToTrack afterwards if playback is wanted.",
+    "notes": [
+      "SPDIF/Coaxial and Bluetooth/BT are case-insensitive synonyms (Linux 118-130; Android 1256, 1276). AUX is a no-op on M100 (no hardware).",
+      "Selecting SPDIF/AUX on Android pauses the local music (CommandService.java:1262-1264); on Linux it leaves the sync group first (stopSyncGroup)."
+    ]
+  },
+  "set_input_open": {
+    "service": "MiyueAudioSource",
+    "action": "SetInputOpen",
+    "args_template": {
+      "Source": "SPDIF|Bluetooth|AUX",
+      "On": "1|0"
+    },
+    "on_values": {
+      "true": [
+        "1",
+        "true"
+      ],
+      "false": [
+        "0",
+        "false",
+        "anything else"
+      ]
+    },
+    "notes": [
+      "Linux MiyueAudioSource.cpp:158: on = (onStr == \"1\" || iequals(onStr,\"true\")). Android UpnpNativeBridge.java:506: \"1\".equals(on) || \"true\".equalsIgnoreCase(on). Everything else is OFF. Send \"1\"/\"0\".",
+      "LIVE: SetInputOpen(SPDIF,'1') -> within 1.2 s GetExternalInputs OpenSpdif=1, TransportState PLAYING, GetQueue.CurrentIndex -103. SetInputOpen(SPDIF,'0'), 'false', SelectSource(Music) each returned 200 but OpenSpdif still read 1 for the next ~20 s (Android dispatches through an EventBus background thread and AuxSpdifManager.restart/stop are synchronous native calls; rapid toggles queue up). ~30 s later OpenSpdif read 0 without further commands. Driver: send once, then poll GetExternalInputs (up to ~10 s) rather than re-sending; do not toggle rapidly.",
+      "After SPDIF closed, TransportState stayed PLAYING and CurrentIndex -103 until a queue command (SeekToTrack) reclaimed the local player, which then reported PAUSED_PLAYBACK. So 'SPDIF off' does not restore the previous local playback state.",
+      "SetInputOpen(AUX, ...) on a WithAux=0 device -> 200, no effect."
+    ]
+  },
+  "play_tts": {
+    "service": "MiyueSystem",
+    "action": "PlayTTS",
+    "args_template": {
+      "Text": "UTF-8 text",
+      "Volume": "1..100 (always send)"
+    },
+    "returns": {},
+    "android": "UpnpManager.cpp:2017-2026 -> UpnpNativeBridge.java:434-451 -> TtsManager.speakCommand (TtsManager.java:123-196): Volume parsed as int; applied only if > 0 (empty/0/invalid = keep current); snapshot of stream volume + playing state taken before, music paused, and on completion the ORIGINAL volume is restored and playback resumed/paused as before. Rejected (returns false, still HTTP 200) if a command TTS is already in flight.",
+    "linux": "MiyueSystem.cpp:60-71 + :250-256 -> MYTTSPlayer::playDirect (MYTTSPlayer.cpp:206-268): invalid/<=0 volume = keep current (236-239); saved volume restored unconditionally at the end (264-268). NOTE the HA CONTRACT.md documents older Linux builds muting on empty/0 volume and never restoring - so the driver must always send Volume in 1..100.",
+    "live": "192.168.1.47 paused, volume 0: PlayTTS('测试', 20) -> 200 in 34 ms; GetVolume read 20 from +0.4 s to +1.1 s, back to 0 at +1.5 s; GetTransportInfo reported PLAYING during the announcement. PlayTTS('测试二', '') -> volume stayed 0, state PLAYING for ~1.5 s then PAUSED_PLAYBACK. Empty Volume and missing Volume arg both accepted (200).",
+    "notes": [
+      "TTS makes TransportState flip to PLAYING briefly - the poller should not treat that as a user play. PlayTTS is per device (no group fan-out)."
+    ]
+  },
+  "rendering_control": {
+    "control_url": "/MediaRenderer/RenderingControl/Control",
+    "service_type": "urn:schemas-upnp-org:service:RenderingControl:1",
+    "set_volume": {
+      "args": {
+        "InstanceID": 0,
+        "Channel": "Master",
+        "DesiredVolume": "0..100"
+      },
+      "range": "0..100, clamped (LIVE: 150 -> 100, -5 -> 0); NON-NUMERIC IS PARSED AS 0 (LIVE: 'abc' -> volume 0; Android DlnaController.cpp:1330-1346 atoi, Linux 437-451) - always send an integer string"
+    },
+    "get_volume": {
+      "returns": "CurrentVolume 0..100 string; tolerant of missing Channel and InstanceID=1 (LIVE)"
+    },
+    "set_mute": {
+      "args": {
+        "InstanceID": 0,
+        "Channel": "Master",
+        "DesiredMute": "1|0"
+      },
+      "accepted_true": [
+        "1",
+        "true"
+      ],
+      "accepted_false": [
+        "0",
+        "false",
+        "other"
+      ],
+      "evidence": "Android DlnaController.cpp:1361-1373 (val == \"1\" || val == \"true\"); Linux 458-467 same. LIVE: '1'->GetMute 1, '0'->0, 'true'->1, 'false'->0; volume unchanged by mute (stayed 25)."
+    },
+    "get_mute": {
+      "returns": "CurrentMute '1'|'0'"
+    },
+    "slave_behavior": "Current firmware of both generations ALWAYS embeds the MediaRenderer regardless of Master/Slave role (Android UpnpManager.cpp:850-864; Linux UpnpManager.cpp:133-146), so RenderingControl/AVTransport answer on a slave. Older builds omitted the MediaRenderer on a Slave -> HTTP 404 on /MediaRenderer/* (documented in haplugin/docs/CONTRACT.md). Keep the 404 tolerance (skip volume/mute, retry later). Slave devices reject third-party SetAVTransportURI with 705 (Linux DlnaController.cpp:203-208). Not testable live: 192.168.1.47 is Role None.",
+    "events": "SetVolume/SetMute emit RCS LastChange; the driver polls instead."
+  },
+  "description": {
+    "url": "http://<ip>:<port>/description.xml (port starts at 49495 and may drift; URLBase element carries the real base)",
+    "root_device": {
+      "deviceType": "urn:schemas-upnp-org:device:MultiRoomMusicPlayer:1",
+      "UDN": "uuid:<factory-uuid>",
+      "friendlyName": "<room name>",
+      "modelName": "M100 (Android) / M210B (Linux)",
+      "extra_tags": "<miyue:roomName>, <miyue:softwareVersion>; Linux additionally <miyue:role>, <miyue:groupID>"
+    },
+    "embedded_device": {
+      "deviceType": "urn:schemas-upnp-org:device:MediaRenderer:1",
+      "UDN": "<root UDN>-mr",
+      "services": {
+        "RenderingControl": {
+          "type": "urn:schemas-upnp-org:service:RenderingControl:1",
+          "controlURL": "/MediaRenderer/RenderingControl/Control",
+          "SCPDURL": "/xml/RenderingControl1.xml"
+        },
+        "ConnectionManager": {
+          "type": "urn:schemas-upnp-org:service:ConnectionManager:1",
+          "controlURL": "/MediaRenderer/ConnectionManager/Control",
+          "SCPDURL": "/xml/ConnectionManager1.xml"
+        },
+        "AVTransport": {
+          "type": "urn:schemas-upnp-org:service:AVTransport:1",
+          "controlURL": "/MediaRenderer/AVTransport/Control",
+          "SCPDURL": "/xml/AVTransport1.xml"
+        }
+      }
+    },
+    "root_services_android_47": {
+      "MiyueGroup": "/_control/MiyueGroup",
+      "MiyueSystem": "/_control/MiyueSystem",
+      "MiyueUpdate": "/_control/MiyueUpdate",
+      "MiyueAudioSource": "/_control/MiyueAudioSource",
+      "MiyueLibrary": "/_control/MiyueLibrary",
+      "MiyueQueue": "/_control/MiyueQueue",
+      "MiyueAlarmClock": "/_control/MiyueAlarmClock",
+      "MiyueSensor": "/_control/MiyueSensor",
+      "MiyueAccount": "/_control/MiyueAccount",
+      "MiyueIntercom": "/_control/MiyueIntercom",
+      "_scpd": "/xml/<Name>1.xml, eventSubURL /_event/<Name>, serviceType urn:miyue-hk:service:<Name>:1, serviceId urn:miyue-hk:serviceId:<Name>"
+    },
+    "root_services_linux_170": "same minus MiyueUpdate, plus MiyueKnxUi (/_control/MiyueKnxUi)",
+    "android_vs_linux_discriminator": "MiyueUpdate is present on the Android .47 build and absent on the Linux .170 build (matches HA CONTRACT.md), BUT the Linux source tree also ships MiyueUpdate.cpp and its comment says MiyueUpdate is meant to be Linux-only in future builds - so do not rely on it alone. Robust: Linux inlines <miyue:role>/<miyue:groupID> in description.xml and lists GetTimeline in the MiyueQueue SCPD (Android does not); GetDeviceInfo Manufacturer is 'MiYue' (Android) vs 'MiYue Intelligent Electronics Co., Ltd.' (Linux); Android lists AVTransport Next/Previous/SetPlayMode in its SCPD, Linux does not.",
+    "fixtures": [
+      "tests/fixtures/android_description.xml",
+      "tests/fixtures/android_scpd_<Service>.xml (13 files)",
+      "tests/fixtures/linux_description.xml"
+    ],
+    "soap_fault_shape": "HTTP 500 + <s:Fault><detail><UPnPError><errorCode>N</errorCode><errorDescription>..</errorDescription>. Unknown action: Android -> 501 'Action Failed' (pupnp rewrites), Linux -> 401 'Invalid Action'. Treat both as 'unsupported'.",
+    "response_shape": "<u:XResponse xmlns:u=\"<serviceType>\"> with plain child elements; actions without out args return an empty <u:XResponse/>."
+  },
+  "quirks": [
+    "All queue indices are 0-based: AppendQueue.InsertAt, ReplaceQueue.StartingIndex, SeekToTrack.Index, RemoveTrack.Index, GetQueue.StartIndex/CurrentIndex.",
+    "Queue/library write actions return 200 synchronously but apply asynchronously (Linux MYMAINLOOP.post, Android runOnMainBlocking/EventBus): re-read GetQueue / GetCollected* after ~500-800 ms; poll GetTransportInfo for PLAYING for up to 6 s after ReplaceQueue/SeekToTrack/Play (observed 0.85-1.1 s).",
+    "AVTransport.Stop on Android reports PAUSED_PLAYBACK afterwards (not STOPPED) for the local queue; position/metadata retained. Map STOPPED/NO_MEDIA_PRESENT/PAUSED_PLAYBACK all to PAUSE as the spec says.",
+    "GetPositionInfo.TrackURI on Android may read 'airplay://current' even while the local queue is playing (stale label) - never infer the owner from TrackURI; use GetQueue.CurrentIndex sign and GetExternalInputs.",
+    "GetPositionInfo keeps the last track's TrackMetaData/TrackDuration/RelTime when the queue is empty or stopped (stale now-playing); clear the now-playing UI when GetQueue.Total==0.",
+    "Unplayable tracks (e.g. Qobuz songSrc 25 without account) make the player error-skip: CurrentIndex advances by 1-2 per command and PLAYING is never reached. Always resync from GetQueue.",
+    "TTS flips TransportState to PLAYING for the announcement and briefly changes GetVolume (Android restores in ~1.5 s).",
+    "AVTransport Next/Previous: listed in the Android SCPD and work (route by owner; LIVE Next 1->2, Previous 2->1). On Linux they are NOT in the SCPD but the handler exists and acts (DlnaController.cpp:386-404 dispatchButton) - Upnp.has() will say false there, so SeekToTrack((idx+delta) mod total) remains the portable path.",
+    "MiyueQueue.GetTimeline is Linux-only (Android .47 -> 501). GetHistory exists on both.",
+    "Empty DIDL results are a self-closing container '<DIDL-Lite xmlns=\"urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/\"/>' (GetCollectedRadios/GetSonglistTracks bad id/GetQueue empty on Android) - the DIDL parser must return {} for it.",
+    "Item ids: local tracks id = 32-hex songId (path md5) with <miyue:musicId> = db row id, songSrc 0, empty <res> (duration attr only), albumArtURI empty or http://<ip>:18181/...; online tracks numeric ids; collected items carry <miyue:musicId> needed for removal.",
+    "Local ID3 titles can be GBK bytes served as Latin-1 mojibake (LIVE: 'Õ¾³¤ËØ²Ä(sc.chinaz.com)' = 站长素材). Pass through unchanged (Control4 shows garbage but keys still match); do not attempt re-decoding in Lua.",
+    "DIDL <res duration> uses unpadded hours 'h:mm:ss' (Linux MiyueLibrary.cpp:86-95); AVTransport RelTime/TrackDuration use 'HH:MM:SS'. Didl.timeToMs must accept both.",
+    "SetVolume with a non-numeric DesiredVolume sets volume 0 (atoi). Always send integers.",
+    "AddTrackToSonglist does not dedupe local tracks on Android -> duplicate rows; check before collecting. IsTrackCollected is unreliable on Android (returned 0 for a collected netease songId).",
+    "GetCollectedBoards/GetCollectedSonglists JSON objects contain id as a STRING ('\"id\":\"4\"') plus boardId/boardSrc/icon/count; icon may be empty -> use default icon.",
+    "SelectSource/SetInputOpen are asynchronous on Android and can lag by tens of seconds after rapid toggles; after SPDIF off, transport stays PLAYING with CurrentIndex -103 until a queue command reclaims local playback.",
+    "AppendQueue of a radio item is dropped on Linux; ReplaceQueue of a radio plays it as an overlay (queue preserved, CurrentIndex -100).",
+    "Slave renderers: current firmware always exposes MediaRenderer; older firmware 404s on /MediaRenderer/* - keep tolerant. Slaves also reject foreign SetAVTransportURI with 705.",
+    "HTTP port can drift from 49495 after reboots (pupnp FD leaks) - probe 49495..49520 and read URLBase.",
+    "During probing 192.168.1.47's transport reported PAUSED_PLAYBACK while its queue index sat on unplayable Qobuz tracks; final restored state: queue 53 tracks identical ids, PAUSED_PLAYBACK, volume 0, mute 0, REPEAT_ALL, SPDIF closed, collections identical; CurrentIndex ended at 6 (was 2) because every SeekToTrack(2) attempt churned forward on the unplayable tracks."
+  ]
+}

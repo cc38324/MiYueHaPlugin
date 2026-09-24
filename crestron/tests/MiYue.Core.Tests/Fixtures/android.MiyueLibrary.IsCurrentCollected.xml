@@ -1,0 +1,5 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body>
+<u:IsCurrentCollectedResponse xmlns:u="urn:miyue-hk:service:MiyueLibrary:1">
+<Collected>0</Collected>
+</u:IsCurrentCollectedResponse>
+</s:Body> </s:Envelope>
