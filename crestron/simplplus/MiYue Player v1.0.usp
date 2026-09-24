@@ -1,0 +1,397 @@
+/*******************************************************************************************
+  MiYue Player v1.0  -  MiYue background music player (UPnP/SOAP)
+  SIMPL+ wrapper around the SIMPL# library MiYue.Crestron.clz (class MiYuePlayer).
+  All networking, parsing and polling run in C#; this module only maps signals.
+
+  UNVERIFIED: written by hand without the SIMPL+ compiler. Open it in SIMPL+ on Windows,
+  compile it (Build > Save and Compile) and fix anything the compiler reports before use.
+  The #DEFINE_CONSTANT numbers below MUST match MiYue.Core.Engine.PlayerSignals (the unit
+  tests check that this file and the C# constants agree).
+*******************************************************************************************/
+
+#SYMBOL_NAME "MiYue Player v1.0"
+#HINT "MiYue background music player - UPnP/SOAP over IP"
+#DEFAULT_VOLATILE
+#ENABLE_STACK_CHECKING
+#ENABLE_TRACE
+#ENCODING_INHERIT_FROM_PARENT
+
+#USER_SIMPLSHARP_LIBRARY "MiYue.Crestron"
+
+#HELP_BEGIN
+MiYue Player v1.0 - controls one MiYue background-music player over UPnP/SOAP.
+
+Requires MiYue.Crestron.clz (SIMPL# library, 4-series) next to this module.
+
+PARAMETERS
+  IP_Address        player IP (the HTTP port 49495..49520 is found automatically)
+  Poll_Interval     status poll period in seconds (1..60, default 3)
+  Volume_Step       step for Vol_Up / Vol_Down (1..20, default 5)
+  Debug_Mode        1 = print diagnostics to the processor console
+  Unicode_Text      1 = send UTF-16 strings (Chinese titles; program encoding UTF-16),
+                    0 = send UTF-8 bytes (ASCII-encoded programs)
+
+DIGITAL INPUTS (pulse = rising edge; Vol_Up/Vol_Down/TTS_To_Group are levels)
+  Play Pause Play_Pause Stop Next_Track Previous_Track
+  Vol_Up Vol_Down (hold to ramp)  Mute_On Mute_Off Mute_Toggle
+  Mode_Normal Mode_Repeat_All Mode_Repeat_One Mode_Shuffle Mode_Cycle
+  Source_Music Source_SPDIF Source_Bluetooth Source_AUX       (SelectSource)
+  Input_SPDIF_On/Off Input_Bluetooth_On/Off Input_AUX_On/Off  (SetInputOpen; asynchronous on Android)
+  Group_Become_Master Group_Leave Group_Dissolve
+  Refresh (re-send all outputs, re-read the device)  Reconnect (probe the port again)
+  TTS_To_Group (level: TTS also speaks on every member of this player's sync group)
+  Scene[1..16] execute the n-th enabled device scene (names on Scene_Name[n])
+
+ANALOG INPUTS
+  Volume_Set (0..100)  Volume_Set_Raw (0..65535)  Seek_Seconds  TTS_Volume (1..100, 0 = current volume)
+
+SERIAL INPUTS
+  TTS_Text             speak the text (PlayTTS always carries a volume 1..100)
+  Play_URL             cast a stream URL (a sync slave casts to its group leader)
+  Group_Join_Master    IP of a player in this program: join its group as a slave
+  Group_Add_Slave      IP of a player in this program: add it to this player's group
+  Scene_Execute        scene id, name or trigger code
+
+OUTPUTS - see crestron/README.md for the full table.
+#HELP_END
+
+/*------------------------------------------------------------------------------------------
+  Signal index contract (MiYue.Core.Engine.PlayerSignals)
+------------------------------------------------------------------------------------------*/
+#DEFINE_CONSTANT DI_PLAY 1
+#DEFINE_CONSTANT DI_PAUSE 2
+#DEFINE_CONSTANT DI_PLAY_PAUSE 3
+#DEFINE_CONSTANT DI_STOP 4
+#DEFINE_CONSTANT DI_NEXT 5
+#DEFINE_CONSTANT DI_PREVIOUS 6
+#DEFINE_CONSTANT DI_VOL_UP 7
+#DEFINE_CONSTANT DI_VOL_DOWN 8
+#DEFINE_CONSTANT DI_MUTE_ON 9
+#DEFINE_CONSTANT DI_MUTE_OFF 10
+#DEFINE_CONSTANT DI_MUTE_TOGGLE 11
+#DEFINE_CONSTANT DI_MODE_NORMAL 12
+#DEFINE_CONSTANT DI_MODE_REPEAT_ALL 13
+#DEFINE_CONSTANT DI_MODE_REPEAT_ONE 14
+#DEFINE_CONSTANT DI_MODE_SHUFFLE 15
+#DEFINE_CONSTANT DI_MODE_CYCLE 16
+#DEFINE_CONSTANT DI_SOURCE_MUSIC 17
+#DEFINE_CONSTANT DI_SOURCE_SPDIF 18
+#DEFINE_CONSTANT DI_SOURCE_BLUETOOTH 19
+#DEFINE_CONSTANT DI_SOURCE_AUX 20
+#DEFINE_CONSTANT DI_INPUT_SPDIF_ON 21
+#DEFINE_CONSTANT DI_INPUT_SPDIF_OFF 22
+#DEFINE_CONSTANT DI_INPUT_BLUETOOTH_ON 23
+#DEFINE_CONSTANT DI_INPUT_BLUETOOTH_OFF 24
+#DEFINE_CONSTANT DI_INPUT_AUX_ON 25
+#DEFINE_CONSTANT DI_INPUT_AUX_OFF 26
+#DEFINE_CONSTANT DI_GROUP_BECOME_MASTER 27
+#DEFINE_CONSTANT DI_GROUP_LEAVE 28
+#DEFINE_CONSTANT DI_GROUP_DISSOLVE 29
+#DEFINE_CONSTANT DI_REFRESH 30
+#DEFINE_CONSTANT DI_RECONNECT 31
+#DEFINE_CONSTANT DI_TTS_TO_GROUP 32
+#DEFINE_CONSTANT DI_SCENE_BASE 100
+
+#DEFINE_CONSTANT AI_VOLUME_SET 1
+#DEFINE_CONSTANT AI_VOLUME_SET_RAW 2
+#DEFINE_CONSTANT AI_SEEK_SECONDS 3
+#DEFINE_CONSTANT AI_TTS_VOLUME 4
+
+#DEFINE_CONSTANT SI_TTS_TEXT 1
+#DEFINE_CONSTANT SI_PLAY_URL 2
+#DEFINE_CONSTANT SI_GROUP_JOIN_MASTER 3
+#DEFINE_CONSTANT SI_GROUP_ADD_SLAVE 4
+#DEFINE_CONSTANT SI_SCENE_EXECUTE 5
+
+#DEFINE_CONSTANT DO_ONLINE 1
+#DEFINE_CONSTANT DO_PLAYING 2
+#DEFINE_CONSTANT DO_PAUSED 3
+#DEFINE_CONSTANT DO_STOPPED 4
+#DEFINE_CONSTANT DO_MUTED 5
+#DEFINE_CONSTANT DO_MODE_NORMAL 6
+#DEFINE_CONSTANT DO_MODE_REPEAT_ALL 7
+#DEFINE_CONSTANT DO_MODE_REPEAT_ONE 8
+#DEFINE_CONSTANT DO_MODE_SHUFFLE 9
+#DEFINE_CONSTANT DO_CAN_SKIP 10
+#DEFINE_CONSTANT DO_SOURCE_MUSIC 11
+#DEFINE_CONSTANT DO_SOURCE_SPDIF 12
+#DEFINE_CONSTANT DO_SOURCE_BLUETOOTH 13
+#DEFINE_CONSTANT DO_SOURCE_AUX 14
+#DEFINE_CONSTANT DO_HAS_SPDIF 15
+#DEFINE_CONSTANT DO_HAS_BLUETOOTH 16
+#DEFINE_CONSTANT DO_HAS_AUX 17
+#DEFINE_CONSTANT DO_GROUP_MASTER 18
+#DEFINE_CONSTANT DO_GROUP_SLAVE 19
+#DEFINE_CONSTANT DO_GROUPED 20
+#DEFINE_CONSTANT DO_GROUP_BUSY 21
+
+#DEFINE_CONSTANT AO_VOLUME 1
+#DEFINE_CONSTANT AO_VOLUME_RAW 2
+#DEFINE_CONSTANT AO_POSITION 3
+#DEFINE_CONSTANT AO_DURATION 4
+#DEFINE_CONSTANT AO_PROGRESS_RAW 5
+#DEFINE_CONSTANT AO_QUEUE_INDEX 6
+#DEFINE_CONSTANT AO_QUEUE_TOTAL 7
+#DEFINE_CONSTANT AO_PORT 8
+#DEFINE_CONSTANT AO_SCENE_COUNT 9
+#DEFINE_CONSTANT AO_GROUP_MEMBER_COUNT 10
+#DEFINE_CONSTANT AO_BLUETOOTH_STATUS 11
+
+#DEFINE_CONSTANT SO_TITLE 1
+#DEFINE_CONSTANT SO_ARTIST 2
+#DEFINE_CONSTANT SO_ALBUM 3
+#DEFINE_CONSTANT SO_COVER_URL 4
+#DEFINE_CONSTANT SO_TRANSPORT_STATE 5
+#DEFINE_CONSTANT SO_PLAY_MODE 6
+#DEFINE_CONSTANT SO_SOURCE 7
+#DEFINE_CONSTANT SO_POSITION_TEXT 8
+#DEFINE_CONSTANT SO_DURATION_TEXT 9
+#DEFINE_CONSTANT SO_DEVICE_NAME 10
+#DEFINE_CONSTANT SO_MODEL 11
+#DEFINE_CONSTANT SO_FIRMWARE 12
+#DEFINE_CONSTANT SO_UDN 13
+#DEFINE_CONSTANT SO_STATUS 14
+#DEFINE_CONSTANT SO_LAST_ERROR 15
+#DEFINE_CONSTANT SO_GROUP_ROLE 16
+#DEFINE_CONSTANT SO_GROUP_MASTER_IP 17
+#DEFINE_CONSTANT SO_GROUP_ID 18
+#DEFINE_CONSTANT SO_GROUP_MEMBERS 19
+#DEFINE_CONSTANT SO_SCENE_NAME_BASE 100
+
+#DEFINE_CONSTANT SCENE_SLOTS 16
+
+/*------------------------------------------------------------------------------------------
+  Inputs / outputs  (arrays are declared last within their type)
+------------------------------------------------------------------------------------------*/
+DIGITAL_INPUT Play, Pause, Play_Pause, Stop, Next_Track, Previous_Track,
+              Vol_Up, Vol_Down, Mute_On, Mute_Off, Mute_Toggle,
+              Mode_Normal, Mode_Repeat_All, Mode_Repeat_One, Mode_Shuffle, Mode_Cycle,
+              Source_Music, Source_SPDIF, Source_Bluetooth, Source_AUX,
+              Input_SPDIF_On, Input_SPDIF_Off, Input_Bluetooth_On, Input_Bluetooth_Off,
+              Input_AUX_On, Input_AUX_Off,
+              Group_Become_Master, Group_Leave, Group_Dissolve,
+              Refresh, Reconnect, TTS_To_Group,
+              Scene[SCENE_SLOTS];
+
+ANALOG_INPUT Volume_Set, Volume_Set_Raw, Seek_Seconds, TTS_Volume;
+
+STRING_INPUT TTS_Text[255], Play_URL[255], Group_Join_Master[15], Group_Add_Slave[15], Scene_Execute[100];
+
+DIGITAL_OUTPUT Online_Fb, Playing_Fb, Paused_Fb, Stopped_Fb, Muted_Fb,
+               Mode_Normal_Fb, Mode_Repeat_All_Fb, Mode_Repeat_One_Fb, Mode_Shuffle_Fb,
+               Can_Skip_Fb,
+               Source_Music_Fb, Source_SPDIF_Fb, Source_Bluetooth_Fb, Source_AUX_Fb,
+               Has_SPDIF_Fb, Has_Bluetooth_Fb, Has_AUX_Fb,
+               Group_Master_Fb, Group_Slave_Fb, Grouped_Fb, Group_Busy_Fb;
+
+ANALOG_OUTPUT Volume_Fb, Volume_Raw_Fb, Position_Fb, Duration_Fb, Progress_Raw_Fb,
+              Queue_Index_Fb, Queue_Total_Fb, Port_Fb, Scene_Count_Fb,
+              Group_Member_Count_Fb, Bluetooth_Status_Fb;
+
+STRING_OUTPUT Title_Fb, Artist_Fb, Album_Fb, Cover_URL_Fb, Transport_State_Fb, Play_Mode_Fb,
+              Source_Fb, Position_Text_Fb, Duration_Text_Fb, Device_Name_Fb, Model_Fb,
+              Firmware_Fb, UDN_Fb, Status_Fb, Last_Error_Fb, Group_Role_Fb,
+              Group_Master_IP_Fb, Group_ID_Fb, Group_Members_Fb,
+              Scene_Name[SCENE_SLOTS];
+
+/*------------------------------------------------------------------------------------------
+  Parameters
+------------------------------------------------------------------------------------------*/
+STRING_PARAMETER IP_Address[15];
+INTEGER_PARAMETER Poll_Interval, Volume_Step, Debug_Mode, Unicode_Text;
+
+#BEGIN_PARAMETER_PROPERTIES IP_Address
+   propValidUnits = unitString;
+   propDefaultUnit = unitString;
+   propDefaultValue = "";
+   propShortDescription = "Player IP address";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Poll_Interval
+   propValidUnits = unitDecimal;
+   propDefaultUnit = unitDecimal;
+   propBounds = 1d , 60d;
+   propDefaultValue = 3d;
+   propShortDescription = "Poll interval (seconds)";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Volume_Step
+   propValidUnits = unitDecimal;
+   propDefaultUnit = unitDecimal;
+   propBounds = 1d , 20d;
+   propDefaultValue = 5d;
+   propShortDescription = "Volume up/down step";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Debug_Mode
+   propValidUnits = unitDecimal;
+   propDefaultUnit = unitDecimal;
+   propBounds = 0d , 1d;
+   propDefaultValue = 0d;
+   propShortDescription = "1 = console diagnostics";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Unicode_Text
+   propValidUnits = unitDecimal;
+   propDefaultUnit = unitDecimal;
+   propBounds = 0d , 1d;
+   propDefaultValue = 1d;
+   propShortDescription = "1 = UTF-16 strings, 0 = UTF-8 bytes";
+#END_PARAMETER_PROPERTIES
+
+/*------------------------------------------------------------------------------------------
+  SIMPL# object
+------------------------------------------------------------------------------------------*/
+MiYuePlayer player;
+
+/*------------------------------------------------------------------------------------------
+  Output callbacks (called from C# only when a value changed)
+------------------------------------------------------------------------------------------*/
+CALLBACK FUNCTION OnDigitalCb(INTEGER idx, INTEGER value)
+{
+    SWITCH (idx)
+    {
+        CASE (DO_ONLINE):            { Online_Fb = value; }
+        CASE (DO_PLAYING):           { Playing_Fb = value; }
+        CASE (DO_PAUSED):            { Paused_Fb = value; }
+        CASE (DO_STOPPED):           { Stopped_Fb = value; }
+        CASE (DO_MUTED):             { Muted_Fb = value; }
+        CASE (DO_MODE_NORMAL):       { Mode_Normal_Fb = value; }
+        CASE (DO_MODE_REPEAT_ALL):   { Mode_Repeat_All_Fb = value; }
+        CASE (DO_MODE_REPEAT_ONE):   { Mode_Repeat_One_Fb = value; }
+        CASE (DO_MODE_SHUFFLE):      { Mode_Shuffle_Fb = value; }
+        CASE (DO_CAN_SKIP):          { Can_Skip_Fb = value; }
+        CASE (DO_SOURCE_MUSIC):      { Source_Music_Fb = value; }
+        CASE (DO_SOURCE_SPDIF):      { Source_SPDIF_Fb = value; }
+        CASE (DO_SOURCE_BLUETOOTH):  { Source_Bluetooth_Fb = value; }
+        CASE (DO_SOURCE_AUX):        { Source_AUX_Fb = value; }
+        CASE (DO_HAS_SPDIF):         { Has_SPDIF_Fb = value; }
+        CASE (DO_HAS_BLUETOOTH):     { Has_Bluetooth_Fb = value; }
+        CASE (DO_HAS_AUX):           { Has_AUX_Fb = value; }
+        CASE (DO_GROUP_MASTER):      { Group_Master_Fb = value; }
+        CASE (DO_GROUP_SLAVE):       { Group_Slave_Fb = value; }
+        CASE (DO_GROUPED):           { Grouped_Fb = value; }
+        CASE (DO_GROUP_BUSY):        { Group_Busy_Fb = value; }
+    }
+}
+
+CALLBACK FUNCTION OnAnalogCb(INTEGER idx, INTEGER value)
+{
+    SWITCH (idx)
+    {
+        CASE (AO_VOLUME):             { Volume_Fb = value; }
+        CASE (AO_VOLUME_RAW):         { Volume_Raw_Fb = value; }
+        CASE (AO_POSITION):           { Position_Fb = value; }
+        CASE (AO_DURATION):           { Duration_Fb = value; }
+        CASE (AO_PROGRESS_RAW):       { Progress_Raw_Fb = value; }
+        CASE (AO_QUEUE_INDEX):        { Queue_Index_Fb = value; }
+        CASE (AO_QUEUE_TOTAL):        { Queue_Total_Fb = value; }
+        CASE (AO_PORT):               { Port_Fb = value; }
+        CASE (AO_SCENE_COUNT):        { Scene_Count_Fb = value; }
+        CASE (AO_GROUP_MEMBER_COUNT): { Group_Member_Count_Fb = value; }
+        CASE (AO_BLUETOOTH_STATUS):   { Bluetooth_Status_Fb = value; }
+    }
+}
+
+CALLBACK FUNCTION OnSerialCb(INTEGER idx, STRING value)
+{
+    IF (idx > SO_SCENE_NAME_BASE)
+    {
+        IF (idx <= SO_SCENE_NAME_BASE + SCENE_SLOTS)
+        {
+            Scene_Name[idx - SO_SCENE_NAME_BASE] = value;
+        }
+    }
+    ELSE
+    {
+        SWITCH (idx)
+        {
+            CASE (SO_TITLE):           { Title_Fb = value; }
+            CASE (SO_ARTIST):          { Artist_Fb = value; }
+            CASE (SO_ALBUM):           { Album_Fb = value; }
+            CASE (SO_COVER_URL):       { Cover_URL_Fb = value; }
+            CASE (SO_TRANSPORT_STATE): { Transport_State_Fb = value; }
+            CASE (SO_PLAY_MODE):       { Play_Mode_Fb = value; }
+            CASE (SO_SOURCE):          { Source_Fb = value; }
+            CASE (SO_POSITION_TEXT):   { Position_Text_Fb = value; }
+            CASE (SO_DURATION_TEXT):   { Duration_Text_Fb = value; }
+            CASE (SO_DEVICE_NAME):     { Device_Name_Fb = value; }
+            CASE (SO_MODEL):           { Model_Fb = value; }
+            CASE (SO_FIRMWARE):        { Firmware_Fb = value; }
+            CASE (SO_UDN):             { UDN_Fb = value; }
+            CASE (SO_STATUS):          { Status_Fb = value; }
+            CASE (SO_LAST_ERROR):      { Last_Error_Fb = value; }
+            CASE (SO_GROUP_ROLE):      { Group_Role_Fb = value; }
+            CASE (SO_GROUP_MASTER_IP): { Group_Master_IP_Fb = value; }
+            CASE (SO_GROUP_ID):        { Group_ID_Fb = value; }
+            CASE (SO_GROUP_MEMBERS):   { Group_Members_Fb = value; }
+        }
+    }
+}
+
+/*------------------------------------------------------------------------------------------
+  Input events - every call returns immediately (the C# engine queues the work)
+------------------------------------------------------------------------------------------*/
+PUSH Play                { player.SetDigital(DI_PLAY, 1); }
+PUSH Pause               { player.SetDigital(DI_PAUSE, 1); }
+PUSH Play_Pause          { player.SetDigital(DI_PLAY_PAUSE, 1); }
+PUSH Stop                { player.SetDigital(DI_STOP, 1); }
+PUSH Next_Track          { player.SetDigital(DI_NEXT, 1); }
+PUSH Previous_Track      { player.SetDigital(DI_PREVIOUS, 1); }
+CHANGE Vol_Up            { player.SetDigital(DI_VOL_UP, Vol_Up); }
+CHANGE Vol_Down          { player.SetDigital(DI_VOL_DOWN, Vol_Down); }
+PUSH Mute_On             { player.SetDigital(DI_MUTE_ON, 1); }
+PUSH Mute_Off            { player.SetDigital(DI_MUTE_OFF, 1); }
+PUSH Mute_Toggle         { player.SetDigital(DI_MUTE_TOGGLE, 1); }
+PUSH Mode_Normal         { player.SetDigital(DI_MODE_NORMAL, 1); }
+PUSH Mode_Repeat_All     { player.SetDigital(DI_MODE_REPEAT_ALL, 1); }
+PUSH Mode_Repeat_One     { player.SetDigital(DI_MODE_REPEAT_ONE, 1); }
+PUSH Mode_Shuffle        { player.SetDigital(DI_MODE_SHUFFLE, 1); }
+PUSH Mode_Cycle          { player.SetDigital(DI_MODE_CYCLE, 1); }
+PUSH Source_Music        { player.SetDigital(DI_SOURCE_MUSIC, 1); }
+PUSH Source_SPDIF        { player.SetDigital(DI_SOURCE_SPDIF, 1); }
+PUSH Source_Bluetooth    { player.SetDigital(DI_SOURCE_BLUETOOTH, 1); }
+PUSH Source_AUX          { player.SetDigital(DI_SOURCE_AUX, 1); }
+PUSH Input_SPDIF_On      { player.SetDigital(DI_INPUT_SPDIF_ON, 1); }
+PUSH Input_SPDIF_Off     { player.SetDigital(DI_INPUT_SPDIF_OFF, 1); }
+PUSH Input_Bluetooth_On  { player.SetDigital(DI_INPUT_BLUETOOTH_ON, 1); }
+PUSH Input_Bluetooth_Off { player.SetDigital(DI_INPUT_BLUETOOTH_OFF, 1); }
+PUSH Input_AUX_On        { player.SetDigital(DI_INPUT_AUX_ON, 1); }
+PUSH Input_AUX_Off       { player.SetDigital(DI_INPUT_AUX_OFF, 1); }
+PUSH Group_Become_Master { player.SetDigital(DI_GROUP_BECOME_MASTER, 1); }
+PUSH Group_Leave         { player.SetDigital(DI_GROUP_LEAVE, 1); }
+PUSH Group_Dissolve      { player.SetDigital(DI_GROUP_DISSOLVE, 1); }
+PUSH Refresh             { player.SetDigital(DI_REFRESH, 1); }
+PUSH Reconnect           { player.SetDigital(DI_RECONNECT, 1); }
+CHANGE TTS_To_Group      { player.SetDigital(DI_TTS_TO_GROUP, TTS_To_Group); }
+
+PUSH Scene
+{
+    player.SetDigital(DI_SCENE_BASE + GetLastModifiedArrayIndex(), 1);
+}
+
+CHANGE Volume_Set        { player.SetAnalog(AI_VOLUME_SET, Volume_Set); }
+CHANGE Volume_Set_Raw    { player.SetAnalog(AI_VOLUME_SET_RAW, Volume_Set_Raw); }
+CHANGE Seek_Seconds      { player.SetAnalog(AI_SEEK_SECONDS, Seek_Seconds); }
+CHANGE TTS_Volume        { player.SetAnalog(AI_TTS_VOLUME, TTS_Volume); }
+
+CHANGE TTS_Text          { player.SetSerial(SI_TTS_TEXT, TTS_Text); }
+CHANGE Play_URL          { player.SetSerial(SI_PLAY_URL, Play_URL); }
+CHANGE Group_Join_Master { player.SetSerial(SI_GROUP_JOIN_MASTER, Group_Join_Master); }
+CHANGE Group_Add_Slave   { player.SetSerial(SI_GROUP_ADD_SLAVE, Group_Add_Slave); }
+CHANGE Scene_Execute     { player.SetSerial(SI_SCENE_EXECUTE, Scene_Execute); }
+
+/*------------------------------------------------------------------------------------------
+  Startup
+------------------------------------------------------------------------------------------*/
+FUNCTION Main()
+{
+    WaitForInitializationComplete();
+    RegisterDelegate(player, OnDigital, OnDigitalCb);
+    RegisterDelegate(player, OnAnalog, OnAnalogCb);
+    RegisterDelegate(player, OnSerial, OnSerialCb);
+    player.Initialize(IP_Address, Poll_Interval, Volume_Step, Debug_Mode, Unicode_Text);
+    // levels that may already be set by the program at startup
+    player.SetAnalog(AI_TTS_VOLUME, TTS_Volume);
+    player.SetDigital(DI_TTS_TO_GROUP, TTS_To_Group);
+}

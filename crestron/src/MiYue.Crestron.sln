@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiYue.Core", "MiYue.Core\MiYue.Core.csproj", "{0E5BF0AB-3573-4705-A26A-10CC486F7571}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiYue.Crestron", "MiYue.Crestron\MiYue.Crestron.csproj", "{9784A390-79DA-4F6A-BB90-76CCB1E1F854}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MiYue.Core.Tests", "..\tests\MiYue.Core.Tests\MiYue.Core.Tests.csproj", "{12D6A4B7-C170-4907-B739-8BEC5D0C4F94}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0E5BF0AB-3573-4705-A26A-10CC486F7571}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E5BF0AB-3573-4705-A26A-10CC486F7571}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E5BF0AB-3573-4705-A26A-10CC486F7571}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E5BF0AB-3573-4705-A26A-10CC486F7571}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9784A390-79DA-4F6A-BB90-76CCB1E1F854}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9784A390-79DA-4F6A-BB90-76CCB1E1F854}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9784A390-79DA-4F6A-BB90-76CCB1E1F854}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9784A390-79DA-4F6A-BB90-76CCB1E1F854}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12D6A4B7-C170-4907-B739-8BEC5D0C4F94}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12D6A4B7-C170-4907-B739-8BEC5D0C4F94}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12D6A4B7-C170-4907-B739-8BEC5D0C4F94}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12D6A4B7-C170-4907-B739-8BEC5D0C4F94}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

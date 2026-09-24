@@ -29,6 +29,7 @@
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
     <!-- the SIMPL+ modules are checked against the C# signal constants (SignalContractTests) -->
     <None Include="..\..\simplplus\*.usp" Link="SimplPlus\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\MiYue.Crestron\SimplModules.cs" Link="SimplPlus\SimplModules.cs" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

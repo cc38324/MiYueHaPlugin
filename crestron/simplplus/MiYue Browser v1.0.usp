@@ -1,0 +1,222 @@
+/*******************************************************************************************
+  MiYue Browser v1.0  -  page-based lists for touch-panel Smart Graphics lists
+  SIMPL+ wrapper around the SIMPL# library MiYue.Crestron.clz (class MiYueBrowser).
+  Attaches to the "MiYue Player v1.0" module that has the same IP address in this program.
+
+  UNVERIFIED: written by hand without the SIMPL+ compiler. Open it in SIMPL+ on Windows,
+  compile it and fix anything the compiler reports before use. The #DEFINE_CONSTANT numbers
+  MUST match MiYue.Core.Engine.BrowserSignals (checked by the unit tests).
+*******************************************************************************************/
+
+#SYMBOL_NAME "MiYue Browser v1.0"
+#HINT "MiYue favorites / songlists / boards / radios / queue / scenes lists"
+#DEFAULT_VOLATILE
+#ENABLE_STACK_CHECKING
+#ENABLE_TRACE
+#ENCODING_INHERIT_FROM_PARENT
+
+#USER_SIMPLSHARP_LIBRARY "MiYue.Crestron"
+
+#HELP_BEGIN
+MiYue Browser v1.0 - lists for a touch-panel list (Smart Graphics "Subpage Reference List"
+or any list with per-row text joins). Needs a "MiYue Player v1.0" module with the same IP
+address in the same program (it borrows that player's connection).
+
+PARAMETERS
+  Player_IP_Address  IP of the player module to browse
+  Page_Size          rows per page (1..20, default 10) - set the panel list to this many rows
+  Debug_Mode         1 = console diagnostics
+  Unicode_Text       1 = UTF-16 strings, 0 = UTF-8 bytes
+
+INPUTS
+  List_Liked List_Songlists List_Boards List_Radios List_Queue List_Scenes  open a list at page 1
+  Page_Next Page_Prev Page_First   paging        Back   songlist/board tracks -> the list
+  Play_All   play the whole track list from track 1 (queue: restart at track 1)
+  Refresh    reload the current page
+  Item_Select[1..20]   press row n of the current page:
+                         track lists -> ReplaceQueue(whole list, that track) and play
+                         songlists/boards -> open its tracks     queue -> SeekToTrack
+                         scenes -> ExecuteSensor
+  Item_Clicked (analog 1..20) same as Item_Select[n] (Smart Graphics "Item Clicked")
+  Goto_Page    (analog, 1-based)
+
+OUTPUTS
+  Busy Can_Back Has_Prev_Page Has_Next_Page Player_Found
+  Item_Is_Current[1..20]   queue list: the row now playing
+  Page (1-based) Page_Count Items_On_Page (wire to the list's "Set Number of Items") Total_Items
+  List_Title Status  Item_Text[1..20] Item_Sub[1..20] (artist / count) Item_Icon[1..20] (cover URL)
+#HELP_END
+
+#DEFINE_CONSTANT MAX_ROWS 20
+
+#DEFINE_CONSTANT DI_LIST_LIKED 1
+#DEFINE_CONSTANT DI_LIST_SONGLISTS 2
+#DEFINE_CONSTANT DI_LIST_BOARDS 3
+#DEFINE_CONSTANT DI_LIST_RADIOS 4
+#DEFINE_CONSTANT DI_LIST_QUEUE 5
+#DEFINE_CONSTANT DI_LIST_SCENES 6
+#DEFINE_CONSTANT DI_PAGE_NEXT 7
+#DEFINE_CONSTANT DI_PAGE_PREV 8
+#DEFINE_CONSTANT DI_PAGE_FIRST 9
+#DEFINE_CONSTANT DI_BACK 10
+#DEFINE_CONSTANT DI_PLAY_ALL 11
+#DEFINE_CONSTANT DI_REFRESH 12
+#DEFINE_CONSTANT DI_ITEM_BASE 100
+
+#DEFINE_CONSTANT AI_ITEM_CLICKED 1
+#DEFINE_CONSTANT AI_GOTO_PAGE 2
+
+#DEFINE_CONSTANT DO_BUSY 1
+#DEFINE_CONSTANT DO_CAN_BACK 2
+#DEFINE_CONSTANT DO_HAS_PREV 3
+#DEFINE_CONSTANT DO_HAS_NEXT 4
+#DEFINE_CONSTANT DO_PLAYER_FOUND 5
+#DEFINE_CONSTANT DO_ITEM_CURRENT_BASE 100
+
+#DEFINE_CONSTANT AO_PAGE 1
+#DEFINE_CONSTANT AO_PAGE_COUNT 2
+#DEFINE_CONSTANT AO_ITEMS_ON_PAGE 3
+#DEFINE_CONSTANT AO_TOTAL_ITEMS 4
+
+#DEFINE_CONSTANT SO_LIST_TITLE 1
+#DEFINE_CONSTANT SO_STATUS 2
+#DEFINE_CONSTANT SO_ITEM_TEXT_BASE 100
+#DEFINE_CONSTANT SO_ITEM_SUB_BASE 200
+#DEFINE_CONSTANT SO_ITEM_ICON_BASE 300
+
+DIGITAL_INPUT List_Liked, List_Songlists, List_Boards, List_Radios, List_Queue, List_Scenes,
+              Page_Next, Page_Prev, Page_First, Back, Play_All, Refresh,
+              Item_Select[MAX_ROWS];
+
+ANALOG_INPUT Item_Clicked, Goto_Page;
+
+DIGITAL_OUTPUT Busy_Fb, Can_Back_Fb, Has_Prev_Page_Fb, Has_Next_Page_Fb, Player_Found_Fb,
+               Item_Is_Current[MAX_ROWS];
+
+ANALOG_OUTPUT Page_Fb, Page_Count_Fb, Items_On_Page_Fb, Total_Items_Fb;
+
+STRING_OUTPUT List_Title_Fb, Status_Fb,
+              Item_Text[MAX_ROWS], Item_Sub[MAX_ROWS], Item_Icon[MAX_ROWS];
+
+STRING_PARAMETER Player_IP_Address[15];
+INTEGER_PARAMETER Page_Size, Debug_Mode, Unicode_Text;
+
+#BEGIN_PARAMETER_PROPERTIES Player_IP_Address
+   propValidUnits = unitString;
+   propDefaultUnit = unitString;
+   propDefaultValue = "";
+   propShortDescription = "IP of the MiYue Player module";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Page_Size
+   propValidUnits = unitDecimal;
+   propDefaultUnit = unitDecimal;
+   propBounds = 1d , 20d;
+   propDefaultValue = 10d;
+   propShortDescription = "Rows per page";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Debug_Mode
+   propValidUnits = unitDecimal;
+   propDefaultUnit = unitDecimal;
+   propBounds = 0d , 1d;
+   propDefaultValue = 0d;
+   propShortDescription = "1 = console diagnostics";
+#END_PARAMETER_PROPERTIES
+
+#BEGIN_PARAMETER_PROPERTIES Unicode_Text
+   propValidUnits = unitDecimal;
+   propDefaultUnit = unitDecimal;
+   propBounds = 0d , 1d;
+   propDefaultValue = 1d;
+   propShortDescription = "1 = UTF-16 strings, 0 = UTF-8 bytes";
+#END_PARAMETER_PROPERTIES
+
+MiYueBrowser browser;
+
+CALLBACK FUNCTION OnDigitalCb(INTEGER idx, INTEGER value)
+{
+    IF (idx > DO_ITEM_CURRENT_BASE)
+    {
+        IF (idx <= DO_ITEM_CURRENT_BASE + MAX_ROWS)
+        {
+            Item_Is_Current[idx - DO_ITEM_CURRENT_BASE] = value;
+        }
+    }
+    ELSE
+    {
+        SWITCH (idx)
+        {
+            CASE (DO_BUSY):         { Busy_Fb = value; }
+            CASE (DO_CAN_BACK):     { Can_Back_Fb = value; }
+            CASE (DO_HAS_PREV):     { Has_Prev_Page_Fb = value; }
+            CASE (DO_HAS_NEXT):     { Has_Next_Page_Fb = value; }
+            CASE (DO_PLAYER_FOUND): { Player_Found_Fb = value; }
+        }
+    }
+}
+
+CALLBACK FUNCTION OnAnalogCb(INTEGER idx, INTEGER value)
+{
+    SWITCH (idx)
+    {
+        CASE (AO_PAGE):          { Page_Fb = value; }
+        CASE (AO_PAGE_COUNT):    { Page_Count_Fb = value; }
+        CASE (AO_ITEMS_ON_PAGE): { Items_On_Page_Fb = value; }
+        CASE (AO_TOTAL_ITEMS):   { Total_Items_Fb = value; }
+    }
+}
+
+CALLBACK FUNCTION OnSerialCb(INTEGER idx, STRING value)
+{
+    IF (idx > SO_ITEM_ICON_BASE)
+    {
+        IF (idx <= SO_ITEM_ICON_BASE + MAX_ROWS) { Item_Icon[idx - SO_ITEM_ICON_BASE] = value; }
+    }
+    ELSE IF (idx > SO_ITEM_SUB_BASE)
+    {
+        IF (idx <= SO_ITEM_SUB_BASE + MAX_ROWS) { Item_Sub[idx - SO_ITEM_SUB_BASE] = value; }
+    }
+    ELSE IF (idx > SO_ITEM_TEXT_BASE)
+    {
+        IF (idx <= SO_ITEM_TEXT_BASE + MAX_ROWS) { Item_Text[idx - SO_ITEM_TEXT_BASE] = value; }
+    }
+    ELSE IF (idx = SO_LIST_TITLE)
+    {
+        List_Title_Fb = value;
+    }
+    ELSE IF (idx = SO_STATUS)
+    {
+        Status_Fb = value;
+    }
+}
+
+PUSH List_Liked     { browser.SetDigital(DI_LIST_LIKED, 1); }
+PUSH List_Songlists { browser.SetDigital(DI_LIST_SONGLISTS, 1); }
+PUSH List_Boards    { browser.SetDigital(DI_LIST_BOARDS, 1); }
+PUSH List_Radios    { browser.SetDigital(DI_LIST_RADIOS, 1); }
+PUSH List_Queue     { browser.SetDigital(DI_LIST_QUEUE, 1); }
+PUSH List_Scenes    { browser.SetDigital(DI_LIST_SCENES, 1); }
+PUSH Page_Next      { browser.SetDigital(DI_PAGE_NEXT, 1); }
+PUSH Page_Prev      { browser.SetDigital(DI_PAGE_PREV, 1); }
+PUSH Page_First     { browser.SetDigital(DI_PAGE_FIRST, 1); }
+PUSH Back           { browser.SetDigital(DI_BACK, 1); }
+PUSH Play_All       { browser.SetDigital(DI_PLAY_ALL, 1); }
+PUSH Refresh        { browser.SetDigital(DI_REFRESH, 1); }
+
+PUSH Item_Select
+{
+    browser.SetDigital(DI_ITEM_BASE + GetLastModifiedArrayIndex(), 1);
+}
+
+CHANGE Item_Clicked { browser.SetAnalog(AI_ITEM_CLICKED, Item_Clicked); }
+CHANGE Goto_Page    { browser.SetAnalog(AI_GOTO_PAGE, Goto_Page); }
+
+FUNCTION Main()
+{
+    WaitForInitializationComplete();
+    RegisterDelegate(browser, OnDigital, OnDigitalCb);
+    RegisterDelegate(browser, OnAnalog, OnAnalogCb);
+    RegisterDelegate(browser, OnSerial, OnSerialCb);
+    browser.Initialize(Player_IP_Address, Page_Size, Debug_Mode, Unicode_Text);
+}
