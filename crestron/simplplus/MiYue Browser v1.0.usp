@@ -26,7 +26,7 @@ PARAMETERS
   Player_IP_Address  IP of the player module to browse
   Page_Size          rows per page (1..20, default 10) - set the panel list to this many rows
   Debug_Mode         1 = console diagnostics
-  Unicode_Text       1 = UTF-16 strings, 0 = UTF-8 bytes
+  Unicode_Text       1 = UTF-16 strings, 0 = UTF-16LE bytes
 
 INPUTS
   List_Liked List_Songlists List_Boards List_Radios List_Queue List_Scenes  open a list at page 1
@@ -129,7 +129,7 @@ INTEGER_PARAMETER Page_Size, Debug_Mode, Unicode_Text;
    propDefaultUnit = unitDecimal;
    propBounds = 0d , 1d;
    propDefaultValue = 1d;
-   propShortDescription = "1 = UTF-16 strings, 0 = UTF-8 bytes";
+   propShortDescription = "1 = UTF-16 strings, 0 = UTF-16LE bytes";
 #END_PARAMETER_PROPERTIES
 
 MiYueBrowser browser;

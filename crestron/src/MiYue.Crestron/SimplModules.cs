@@ -59,10 +59,11 @@ namespace MiYue.Crestron
             if (h == null) return;
             value = SimplText.Clip(value ?? string.Empty, MaxSerialLength);
             // Unicode_Text=1: real UTF-16 (the SIMPL program / module runs with UTF-16 string encoding).
-            // Unicode_Text=0: UTF-8 bytes packed one per char for ASCII-encoded programs.
+            // Unicode_Text=0: UTF-16LE bytes packed one per char for ASCII-encoded programs (the technique
+            // the legacy MiYue Crestron module used to put Chinese on panels).
             h(index, _unicode
                 ? new SimplSharpString(value, CrestronStringEncoding.eEncodingUTF16)
-                : new SimplSharpString(SimplText.ToUtf8Bytes(value)));
+                : new SimplSharpString(SimplText.ToUtf16LeBytes(value)));
         }
     }
 

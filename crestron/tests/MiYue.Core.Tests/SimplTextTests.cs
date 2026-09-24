@@ -31,6 +31,13 @@ namespace MiYue.Core.Tests
         }
 
         [Fact]
+        public void Utf16le_bytes_for_ascii_programs()
+        {
+            Assert.Equal(new[] { 'A', '\0' }, SimplText.ToUtf16LeBytes("A").ToCharArray());
+            Assert.Equal(new[] { (char)0x2D, (char)0x4E }, SimplText.ToUtf16LeBytes("中").ToCharArray()); // U+4E2D
+        }
+
+        [Fact]
         public void Clip_never_splits_a_surrogate_pair()
         {
             Assert.Equal("abc", SimplText.Clip("abcdef", 3));

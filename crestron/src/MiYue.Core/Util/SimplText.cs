@@ -49,6 +49,18 @@ namespace MiYue.Core.Util
             return sb.ToString();
         }
 
+        /// <summary>UTF-16LE bytes of <paramref name="value"/> packed one per char, no BOM. This is what the
+        /// legacy MiYue Crestron module fed to touch panels from an ASCII-encoded program (its
+        /// "UTF8 to Unicode" helper), so Unicode_Text=0 uses it.</summary>
+        public static string ToUtf16LeBytes(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value ?? string.Empty;
+            var bytes = Encoding.Unicode.GetBytes(value);
+            var sb = new StringBuilder(bytes.Length);
+            foreach (var b in bytes) sb.Append((char)b);
+            return sb.ToString();
+        }
+
         /// <summary>Truncate to at most <paramref name="max"/> chars (SIMPL+ STRING_OUTPUT / panel limits).</summary>
         public static string Clip(string value, int max)
         {

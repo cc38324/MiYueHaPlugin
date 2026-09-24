@@ -29,7 +29,7 @@ PARAMETERS
   Volume_Step       step for Vol_Up / Vol_Down (1..20, default 5)
   Debug_Mode        1 = print diagnostics to the processor console
   Unicode_Text      1 = send UTF-16 strings (Chinese titles; program encoding UTF-16),
-                    0 = send UTF-8 bytes (ASCII-encoded programs)
+                    0 = send UTF-16LE bytes (ASCII-encoded programs)
 
 DIGITAL INPUTS (pulse = rising edge; Vol_Up/Vol_Down/TTS_To_Group are levels)
   Play Pause Play_Pause Stop Next_Track Previous_Track
@@ -236,7 +236,7 @@ INTEGER_PARAMETER Poll_Interval, Volume_Step, Debug_Mode, Unicode_Text;
    propDefaultUnit = unitDecimal;
    propBounds = 0d , 1d;
    propDefaultValue = 1d;
-   propShortDescription = "1 = UTF-16 strings, 0 = UTF-8 bytes";
+   propShortDescription = "1 = UTF-16 strings, 0 = UTF-16LE bytes";
 #END_PARAMETER_PROPERTIES
 
 /*------------------------------------------------------------------------------------------
