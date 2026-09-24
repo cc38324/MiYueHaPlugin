@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Offline unit tests for MiYue.Core. Run from the crestron/ directory:
+  <!-- Offline unit tests for MiYue.Core. Run from the driver root (repo root, or crestron/ in the HA repo):
          dotnet test tests/MiYue.Core.Tests
        No Crestron SDK, no device, no network. -->
   <PropertyGroup>

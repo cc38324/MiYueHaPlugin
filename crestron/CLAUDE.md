@@ -98,7 +98,7 @@ compile for net472 / C# 7.3 (`LangVersion 7.3` in both projects) and must not re
 ## Testing / building
 
 ```
-cd crestron
+# from the driver root (repo root of MiYueCrestronDriver, or crestron/ in the HA repo)
 dotnet test tests/MiYue.Core.Tests                               # offline, any OS
 dotnet build src/MiYue.Crestron/MiYue.Crestron.csproj -c Release  # -> bin/Release/net472/MiYue.Crestron.clz
 python macro/gen_umc.py                                          # regenerate the user macro

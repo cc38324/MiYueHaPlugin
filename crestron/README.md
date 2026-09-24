@@ -48,7 +48,7 @@
 
 运行测试(任何系统,无需设备):
 ```
-cd crestron
+cd <驱动根目录 / driver root>   # 独立仓库根目录,或 HA 仓库中的 crestron/
 dotnet test tests/MiYue.Core.Tests
 ```
 
@@ -265,7 +265,7 @@ This repository was produced without SIMPL Windows or SIMPL+:
 6. Diagnostics: with `Debug_Mode=1` the module prints `[MiYue] ...` lines to the processor console.
    Errors also go to the ErrorLog.
 
-Tests run on any OS and need no device: `cd crestron && dotnet test tests/MiYue.Core.Tests`.
+Tests run on any OS and need no device: `dotnet test tests/MiYue.Core.Tests`, run from the driver root (the repo root of MiYueCrestronDriver, or `crestron/` inside the HA repo).
 
 ### Parameters
 
